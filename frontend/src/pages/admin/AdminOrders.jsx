@@ -124,10 +124,7 @@ const AdminOrders = () => {
                   </p>
 
                   <p className="mt-1">
-                    {
-                      order.shippingAddress
-                        ?.fullName
-                    }
+                    {order.shippingAddress?.fullName}
                   </p>
                 </div>
 
@@ -137,10 +134,7 @@ const AdminOrders = () => {
                   </p>
 
                   <p className="mt-1">
-                    {
-                      order.shippingAddress
-                        ?.phone
-                    }
+                    {order.shippingAddress?.phone}
                   </p>
                 </div>
 
@@ -149,9 +143,9 @@ const AdminOrders = () => {
                     Total
                   </p>
 
+                  {/* FIX: was order.totalPrice (doesn't exist), backend field is totalAmount */}
                   <p className="mt-1 text-xl font-medium">
-                    Rs.{" "}
-                    {order.totalPrice?.toLocaleString()}
+                    Rs. {order.totalAmount?.toLocaleString()}
                   </p>
                 </div>
 
@@ -182,23 +176,22 @@ const AdminOrders = () => {
                 </div>
               </div>
 
+              {/* FIX: was order.orderItems (doesn't exist), backend field is items */}
               <div className="mt-6 space-y-4">
-                {order.orderItems?.map((item) => (
+                {order.items?.map((item, index) => (
                   <div
-                    key={item.product?._id}
+                    key={item.product?._id || index}
                     className="flex items-center gap-4 rounded-2xl border border-graphite-700 bg-graphite-900 p-4"
                   >
                     <img
-                      src={
-                        item.product?.images?.[0]
-                      }
-                      alt={item.product?.name}
+                      src={item.image || item.product?.images?.[0]}
+                      alt={item.name}
                       className="h-24 w-24 rounded-xl object-cover"
                     />
 
                     <div className="flex-1">
                       <h3 className="font-display text-2xl italic">
-                        {item.product?.name}
+                        {item.name}
                       </h3>
 
                       <p className="mt-2 text-sm text-parchment-100/60">
@@ -207,8 +200,7 @@ const AdminOrders = () => {
                     </div>
 
                     <p className="text-lg font-medium">
-                      Rs.{" "}
-                      {item.price?.toLocaleString()}
+                      Rs. {item.price?.toLocaleString()}
                     </p>
                   </div>
                 ))}
@@ -224,40 +216,28 @@ const AdminOrders = () => {
                     <span className="text-parchment-100/60">
                       Address:
                     </span>{" "}
-                    {
-                      order.shippingAddress
-                        ?.address
-                    }
+                    {order.shippingAddress?.address}
                   </p>
 
                   <p>
                     <span className="text-parchment-100/60">
                       City:
                     </span>{" "}
-                    {
-                      order.shippingAddress
-                        ?.city
-                    }
+                    {order.shippingAddress?.city}
                   </p>
 
                   <p>
                     <span className="text-parchment-100/60">
                       Area:
                     </span>{" "}
-                    {
-                      order.shippingAddress
-                        ?.area
-                    }
+                    {order.shippingAddress?.area}
                   </p>
 
                   <p>
                     <span className="text-parchment-100/60">
                       Postal Code:
                     </span>{" "}
-                    {
-                      order.shippingAddress
-                        ?.postalCode
-                    }
+                    {order.shippingAddress?.postalCode}
                   </p>
                 </div>
 

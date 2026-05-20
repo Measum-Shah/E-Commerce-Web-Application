@@ -14,8 +14,10 @@ const Cart = () => {
 
   const items = cart?.items || [];
 
+  // FIX: was item.product.price which is undefined (price is not in populate fields).
+  // item.price is the correct field stored on the cart item itself.
   const subtotal = items.reduce((total, item) => {
-    return total + item.product.price * item.quantity;
+    return total + item.price * item.quantity;
   }, 0);
 
   if (loading) {
@@ -86,11 +88,12 @@ const Cart = () => {
                   </p>
 
                   <h2 className="mt-1 font-display text-3xl italic">
-                    {item.product.name}
+                    {item.name}
                   </h2>
 
+                  {/* FIX: was item.product.price (undefined), now item.price */}
                   <p className="mt-3 text-lg font-medium">
-                    Rs. {item.product.price?.toLocaleString()}
+                    Rs. {item.price?.toLocaleString()}
                   </p>
                 </div>
 

@@ -29,6 +29,13 @@ const AdminDashboard = () => {
       icon: ShoppingCart,
       link: "/admin/orders",
     },
+     {
+      title: "Manage Contact Messages",
+      description:
+        "Read and reply messages",
+      icon: ShoppingCart,
+      link: "/admin/contact",
+    },
   ];
 
   return (

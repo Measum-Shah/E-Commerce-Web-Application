@@ -1,17 +1,28 @@
+import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { ShoppingBag, LayoutDashboard } from "lucide-react";
+import {
+  ShoppingCart,
+  LayoutDashboard,
+  Menu,
+  X,
+} from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const { user, logout, isAuthenticated, isAdmin } =
-    useAuth();
+  const { user, logout, isAuthenticated, isAdmin } = useAuth();
 
   const handleLogout = () => {
     logout();
+    setIsMenuOpen(false);
     navigate("/login");
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
   };
 
   const navLinkStyles = ({ isActive }) =>
@@ -21,11 +32,19 @@ const Navbar = () => {
         : "text-parchment-100/70 hover:text-parchment-50"
     }`;
 
+  const mobileNavLinkStyles = ({ isActive }) =>
+    `block rounded-lg px-4 py-3 transition ${
+      isActive
+        ? "bg-graphite-800 text-parchment-50"
+        : "text-parchment-100/70 hover:bg-graphite-800 hover:text-parchment-50"
+    }`;
+
   return (
     <header className="sticky top-0 z-50 border-b border-graphite-700 bg-graphite-900/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <Link
           to="/"
+          onClick={closeMenu}
           className="font-display text-3xl italic tracking-tight text-parchment-50"
         >
           Premier
@@ -36,19 +55,17 @@ const Navbar = () => {
             Home
           </NavLink>
 
-          <NavLink
-            to="/products"
-            className={navLinkStyles}
-          >
+          <NavLink to="/products" className={navLinkStyles}>
             Products
+          </NavLink>
+
+          <NavLink to="/contact" className={navLinkStyles}>
+            Contact Us
           </NavLink>
 
           {!isAuthenticated && (
             <>
-              <NavLink
-                to="/login"
-                className={navLinkStyles}
-              >
+              <NavLink to="/login" className={navLinkStyles}>
                 Login
               </NavLink>
 
@@ -65,16 +82,13 @@ const Navbar = () => {
             <>
               <NavLink
                 to="/cart"
-                className="flex items-center gap-2 text-parchment-100/70 transition hover:text-parchment-50"
+                className="relative flex items-center gap-2 text-parchment-100/70 transition hover:text-parchment-50"
               >
-                <ShoppingBag size={18} />
-                Cart
+                <ShoppingCart size={21} strokeWidth={2.4} />
+                <span>Cart</span>
               </NavLink>
 
-              <NavLink
-                to="/orders"
-                className={navLinkStyles}
-              >
+              <NavLink to="/orders" className={navLinkStyles}>
                 Orders
               </NavLink>
             </>
@@ -91,10 +105,10 @@ const Navbar = () => {
           )}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="hidden items-center gap-4 md:flex">
           {isAuthenticated && (
             <>
-              <div className="hidden text-right md:block">
+              <div className="text-right">
                 <p className="text-sm text-parchment-50">
                   {user?.fullName}
                 </p>
@@ -113,7 +127,135 @@ const Navbar = () => {
             </>
           )}
         </div>
+
+        <div className="flex items-center gap-3 md:hidden">
+          {isAuthenticated && !isAdmin && (
+            <Link
+              to="/cart"
+              onClick={closeMenu}
+              className="rounded-lg border border-graphite-700 p-2 text-parchment-100 transition hover:border-velvet hover:text-parchment-50"
+              aria-label="Cart"
+            >
+              <ShoppingCart size={22} strokeWidth={2.4} />
+            </Link>
+          )}
+
+          <button
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="rounded-lg border border-graphite-700 p-2 text-parchment-100 transition hover:border-velvet hover:text-parchment-50"
+            aria-label="Toggle menu"
+          >
+            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
+
+      {isMenuOpen && (
+        <div className="border-t border-graphite-700 bg-graphite-900 px-6 py-5 md:hidden">
+          <nav className="flex flex-col gap-2">
+            <NavLink
+              to="/"
+              onClick={closeMenu}
+              className={mobileNavLinkStyles}
+            >
+              Home
+            </NavLink>
+
+            <NavLink
+              to="/products"
+              onClick={closeMenu}
+              className={mobileNavLinkStyles}
+            >
+              Products
+            </NavLink>
+
+            <NavLink
+              to="/contact"
+              onClick={closeMenu}
+              className={mobileNavLinkStyles}
+            >
+              Contact Us
+            </NavLink>
+
+            {!isAuthenticated && (
+              <>
+                <NavLink
+                  to="/login"
+                  onClick={closeMenu}
+                  className={mobileNavLinkStyles}
+                >
+                  Login
+                </NavLink>
+
+                <NavLink
+                  to="/register"
+                  onClick={closeMenu}
+                  className={mobileNavLinkStyles}
+                >
+                  Register
+                </NavLink>
+              </>
+            )}
+
+            {isAuthenticated && !isAdmin && (
+              <>
+                <NavLink
+                  to="/cart"
+                  onClick={closeMenu}
+                  className={mobileNavLinkStyles}
+                >
+                  <span className="flex items-center gap-2">
+                    <ShoppingCart size={20} strokeWidth={2.4} />
+                    Cart
+                  </span>
+                </NavLink>
+
+                <NavLink
+                  to="/orders"
+                  onClick={closeMenu}
+                  className={mobileNavLinkStyles}
+                >
+                  Orders
+                </NavLink>
+              </>
+            )}
+
+            {isAuthenticated && isAdmin && (
+              <NavLink
+                to="/admin"
+                onClick={closeMenu}
+                className={mobileNavLinkStyles}
+              >
+                <span className="flex items-center gap-2">
+                  <LayoutDashboard size={18} />
+                  Admin Dashboard
+                </span>
+              </NavLink>
+            )}
+
+            {isAuthenticated && (
+              <div className="mt-4 border-t border-graphite-700 pt-4">
+                <div className="mb-4 rounded-lg bg-graphite-800 px-4 py-3">
+                  <p className="text-sm text-parchment-50">
+                    {user?.fullName}
+                  </p>
+
+                  <p className="text-xs capitalize text-parchment-100/60">
+                    {user?.role}
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full rounded-lg border border-graphite-700 px-4 py-3 text-left text-sm text-parchment-100 transition hover:border-velvet hover:text-parchment-50"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 };

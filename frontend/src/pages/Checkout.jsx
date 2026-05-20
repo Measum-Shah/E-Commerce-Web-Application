@@ -6,6 +6,27 @@ import { placeOrder } from "../api/orderApi";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 
+const paymentOptions = [
+  {
+    id: "cod",
+    label: "Cash on Delivery",
+    description: "Pay when your order arrives",
+    available: true,
+  },
+  {
+    id: "jazzcash",
+    label: "JazzCash",
+    description: "Not available — coming soon",
+    available: false,
+  },
+  {
+    id: "bank",
+    label: "Bank Transfer",
+    description: "Not available — coming soon",
+    available: false,
+  },
+];
+
 const Checkout = () => {
   const navigate = useNavigate();
 
@@ -13,6 +34,7 @@ const Checkout = () => {
   const { cart, clearEntireCart } = useCart();
 
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -27,7 +49,7 @@ const Checkout = () => {
   const items = cart?.items || [];
 
   const subtotal = items.reduce((total, item) => {
-    return total + item.product.price * item.quantity;
+    return total + item.price * item.quantity;
   }, 0);
 
   const deliveryFee = 300;
@@ -61,7 +83,7 @@ const Checkout = () => {
           area: formData.area,
           postalCode: formData.postalCode,
         },
-        paymentMethod: "cod",
+        paymentMethod,
         deliveryFee,
         discount,
         notes: formData.notes,
@@ -98,80 +120,131 @@ const Checkout = () => {
         onSubmit={handlePlaceOrder}
         className="grid gap-8 lg:grid-cols-[1fr_380px]"
       >
-        <div className="rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
-          <h2 className="font-display text-3xl italic">
-            Shipping Details
-          </h2>
+        <div className="space-y-6">
+          {/* Shipping Details */}
+          <div className="rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
+            <h2 className="font-display text-3xl italic">
+              Shipping Details
+            </h2>
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
-            <input
-              type="text"
-              name="fullName"
-              placeholder="Full name"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
-            />
+            <div className="mt-8 grid gap-5 md:grid-cols-2">
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Full name"
+                value={formData.fullName}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
+              />
 
-            <input
-              type="text"
-              name="phone"
-              placeholder="Phone number"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
-            />
+              <input
+                type="text"
+                name="phone"
+                placeholder="Phone number"
+                value={formData.phone}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
+              />
 
-            <input
-              type="text"
-              name="city"
-              placeholder="City"
-              value={formData.city}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
-            />
+              <input
+                type="text"
+                name="city"
+                placeholder="City"
+                value={formData.city}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
+              />
 
-            <input
-              type="text"
-              name="area"
-              placeholder="Area"
-              value={formData.area}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
-            />
+              <input
+                type="text"
+                name="area"
+                placeholder="Area"
+                value={formData.area}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
+              />
 
-            <input
-              type="text"
-              name="postalCode"
-              placeholder="Postal code"
-              value={formData.postalCode}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
-            />
+              <input
+                type="text"
+                name="postalCode"
+                placeholder="Postal code"
+                value={formData.postalCode}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet"
+              />
 
-            <input
-              type="text"
-              name="address"
-              placeholder="Full address"
-              value={formData.address}
-              onChange={handleChange}
-              required
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet md:col-span-2"
-            />
+              <input
+                type="text"
+                name="address"
+                placeholder="Full address"
+                value={formData.address}
+                onChange={handleChange}
+                required
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet md:col-span-2"
+              />
 
-            <textarea
-              name="notes"
-              placeholder="Notes, e.g. Call before delivery"
-              value={formData.notes}
-              onChange={handleChange}
-              rows="4"
-              className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet md:col-span-2"
-            />
+              <textarea
+                name="notes"
+                placeholder="Notes, e.g. Call before delivery"
+                value={formData.notes}
+                onChange={handleChange}
+                rows="4"
+                className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none transition focus:border-velvet md:col-span-2"
+              />
+            </div>
+          </div>
+
+          {/* Payment Method */}
+          <div className="rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
+            <h2 className="font-display text-3xl italic">
+              Payment Method
+            </h2>
+
+            <div className="mt-6 space-y-3">
+              {paymentOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className={`flex cursor-pointer items-center gap-4 rounded-2xl border p-4 transition ${
+                    !option.available
+                      ? "cursor-not-allowed border-graphite-700 opacity-50"
+                      : paymentMethod === option.id
+                      ? "border-velvet bg-velvet/10"
+                      : "border-graphite-700 hover:border-graphite-500"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={option.id}
+                    checked={paymentMethod === option.id}
+                    disabled={!option.available}
+                    onChange={() => setPaymentMethod(option.id)}
+                    className="accent-velvet"
+                  />
+
+                  <div>
+                    <p className="font-medium text-parchment-50">
+                      {option.label}
+                    </p>
+
+                    <p
+                      className={`text-sm ${
+                        option.available
+                          ? "text-parchment-100/60"
+                          : "text-parchment-100/40"
+                      }`}
+                    >
+                      {option.description}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -193,7 +266,9 @@ const Checkout = () => {
 
             <div className="flex justify-between border-b border-graphite-700 pb-4">
               <span className="text-parchment-100/60">Payment</span>
-              <span>Cash on Delivery</span>
+              <span>
+                {paymentOptions.find((o) => o.id === paymentMethod)?.label}
+              </span>
             </div>
 
             <div className="flex justify-between text-lg font-medium">

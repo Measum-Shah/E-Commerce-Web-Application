@@ -9,6 +9,7 @@ import categoryRoutes from "./routes/category.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
 
 
 
@@ -56,7 +57,7 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-
+app.use("/api/v1/contact", contactRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/cart", cartRoutes);
