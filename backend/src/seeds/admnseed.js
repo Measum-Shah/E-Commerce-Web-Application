@@ -8,7 +8,7 @@ const seedAdmin = async () => {
     await connectDB();
 
     const existingAdmin = await User.findOne({
-      email: "admin@techshop.com"
+      email: "measum@shop.com"
     });
 
     if (existingAdmin) {
@@ -18,9 +18,9 @@ const seedAdmin = async () => {
 
     await User.create({
       fullName: "TechShop Admin",
-      email: "admin@techshop.com",
+      email: "measum@shop.com",
       phone: "03000000000",
-      password: "admin123",
+      password: "measum@000#",
       role: "admin"
     });
 

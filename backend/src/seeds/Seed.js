@@ -9,7 +9,7 @@ import productsByCategory from "./productSeeder.js";
 
 dotenv.config();
 
-const MONGO_URI = "mongodb://premiercomputers007_db_user:measum112233@ac-r0kzeu9-shard-00-00.rspbmwm.mongodb.net:27017,ac-r0kzeu9-shard-00-01.rspbmwm.mongodb.net:27017,ac-r0kzeu9-shard-00-02.rspbmwm.mongodb.net:27017/prem-tech?ssl=true&replicaSet=atlas-14jw06-shard-0&authSource=admin&appName=Premier-Cluster";
+const MONGO_URI = "mongodb://premiercomputers007_db_user:measum112233@ac-r0kzeu9-shard-00-00.rspbmwm.mongodb.net:27017,ac-r0kzeu9-shard-00-01.rspbmwm.mongodb.net:27017,ac-r0kzeu9-shard-00-02.rspbmwm.mongodb.net:27017/premierstore?ssl=true&replicaSet=atlas-14jw06-shard-0&authSource=admin&appName=Premier-Cluster";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

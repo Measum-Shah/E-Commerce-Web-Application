@@ -16,7 +16,7 @@ import contactRoutes from "./routes/contact.routes.js";
 const corsOptions = {
   // Allow only your frontend origin
   // origin: 'http://localhost:5173',
-  origin:'https://premiercomputers.netlify.app',
+  origin:'https://premiercomputers.store',
    
   // Good practice for professional APIs
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
