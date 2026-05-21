@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
-import {
-  Pencil,
-  Trash2,
-  Plus,
-  X,
-} from "lucide-react";
+import { Pencil, Trash2, Plus, X, UploadCloud, ImageIcon, Star } from "lucide-react";
 
 import {
   createProduct,
@@ -15,7 +10,7 @@ import {
 } from "../../api/productApi";
 
 import { getAllCategories } from "../../api/categoryApi";
-
+import { uploadImage } from "../../api/uploadApi";
 import { useAuth } from "../../context/AuthContext";
 
 const initialForm = {
@@ -28,7 +23,6 @@ const initialForm = {
   price: "",
   stock: "",
   lowStockThreshold: 2,
-  image: "",
   processor: "",
   ram: "",
   storage: "",
@@ -39,43 +33,36 @@ const initialForm = {
 
 const AdminProducts = () => {
   const { token } = useAuth();
+  const fileInputRef = useRef(null);
 
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] =
-    useState([]);
+  const [categories, setCategories] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const [editingProduct, setEditingProduct] =
-    useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [formData, setFormData] = useState(initialForm);
 
-  const [formData, setFormData] =
-    useState(initialForm);
+  // Each entry: { file: File|null, preview: string, url: string|null }
+  // file = File object if newly picked, null if it's an existing URL
+  // preview = object URL (new) or cloudinary URL (existing)
+  // url = final cloudinary URL (null until uploaded)
+  const [images, setImages] = useState([]);
+  const [coverIndex, setCoverIndex] = useState(0);
 
+  /* ── fetch ──────────────────────────────────────────── */
   const fetchData = async () => {
     try {
-      const productData = await getAllProducts();
-      const categoryData =
-        await getAllCategories();
-
-      setProducts(
-        productData.products ||
-          productData.data ||
-          []
-      );
-
-      setCategories(
-        categoryData.categories ||
-          categoryData.data ||
-          []
-      );
+      const [productData, categoryData] = await Promise.all([
+        getAllProducts(),
+        getAllCategories(),
+      ]);
+      setProducts(productData.products || productData.data || []);
+      setCategories(categoryData.categories || categoryData.data || []);
     } catch (error) {
-      console.log(
-        error.response?.data?.message ||
-          error.message
-      );
+      console.log(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }
@@ -85,27 +72,99 @@ const AdminProducts = () => {
     fetchData();
   }, []);
 
+  /* ── form helpers ───────────────────────────────────── */
   const handleChange = (e) => {
-    const { name, value, type, checked } =
-      e.target;
-
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
   const resetForm = () => {
     setEditingProduct(null);
     setFormData(initialForm);
+    setImages([]);
+    setCoverIndex(0);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /* ── image handlers ─────────────────────────────────── */
+  const handleImagePick = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newImages = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      url: null,
+    }));
+
+    setImages((prev) => [...prev, ...newImages]);
+    // Reset file input so same file can be picked again if needed
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (index) => {
+    setImages((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      // If we removed the cover, reset to first image
+      if (coverIndex >= updated.length) {
+        setCoverIndex(0);
+      } else if (coverIndex === index) {
+        setCoverIndex(0);
+      }
+      return updated;
+    });
+  };
+
+  const setCover = (index) => {
+    setCoverIndex(index);
+  };
+
+  /* ── upload all new images to cloudinary ────────────── */
+  const uploadAllImages = async () => {
+    const uploaded = await Promise.all(
+      images.map(async (img) => {
+        // Already uploaded (existing cloudinary URL, no file)
+        if (!img.file) return { ...img };
+
+        const data = await uploadImage(img.file, token);
+        return {
+          ...img,
+          url: data.data.url,
+        };
+      })
+    );
+    return uploaded;
+  };
+
+  /* ── submit ─────────────────────────────────────────── */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (images.length === 0) {
+      toast.error("Please upload at least one product image");
+      return;
+    }
+
     try {
       setSubmitting(true);
+      setUploading(true);
+      toast.loading("Uploading images...", { id: "img-upload" });
+
+      const uploadedImages = await uploadAllImages();
+      setImages(uploadedImages);
+      setUploading(false);
+      toast.dismiss("img-upload");
+
+      // Build final images array with cover image first
+      const finalImages = [
+        uploadedImages[coverIndex]?.url || uploadedImages[coverIndex]?.preview,
+        ...uploadedImages
+          .filter((_, i) => i !== coverIndex)
+          .map((img) => img.url || img.preview),
+      ].filter(Boolean);
 
       const payload = {
         name: formData.name,
@@ -116,10 +175,8 @@ const AdminProducts = () => {
         condition: formData.condition,
         price: Number(formData.price),
         stock: Number(formData.stock),
-        lowStockThreshold: Number(
-          formData.lowStockThreshold
-        ),
-        images: [formData.image],
+        lowStockThreshold: Number(formData.lowStockThreshold),
+        images: finalImages,
         specifications: {
           processor: formData.processor,
           ram: formData.ram,
@@ -131,127 +188,87 @@ const AdminProducts = () => {
       };
 
       if (editingProduct) {
-        const data = await updateProduct(
-          editingProduct._id,
-          payload,
-          token
-        );
-
-        toast.success(
-          data.message ||
-            "Product updated successfully"
-        );
+        const data = await updateProduct(editingProduct._id, payload, token);
+        toast.success(data.message || "Product updated successfully");
       } else {
-        const data = await createProduct(
-          payload,
-          token
-        );
-
-        toast.success(
-          data.message ||
-            "Product created successfully"
-        );
+        const data = await createProduct(payload, token);
+        toast.success(data.message || "Product created successfully");
       }
 
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-          "Something went wrong"
-      );
+      setUploading(false);
+      toast.dismiss("img-upload");
+      toast.error(error.response?.data?.message || "Something went wrong");
     } finally {
       setSubmitting(false);
     }
   };
 
+  /* ── edit ───────────────────────────────────────────── */
   const handleEdit = (product) => {
     setEditingProduct(product);
-
     setFormData({
       name: product.name || "",
-      description:
-        product.description || "",
-      category:
-        product.category?._id || "",
+      description: product.description || "",
+      category: product.category?._id || "",
       brand: product.brand || "",
       sku: product.sku || "",
-      condition:
-        product.condition || "used",
+      condition: product.condition || "used",
       price: product.price || "",
       stock: product.stock || "",
-      lowStockThreshold:
-        product.lowStockThreshold || 2,
-      image: product.images?.[0] || "",
-      processor:
-        product.specifications?.processor ||
-        "",
-      ram:
-        product.specifications?.ram || "",
-      storage:
-        product.specifications?.storage ||
-        "",
-      display:
-        product.specifications?.display ||
-        "",
+      lowStockThreshold: product.lowStockThreshold || 2,
+      processor: product.specifications?.processor || "",
+      ram: product.specifications?.ram || "",
+      storage: product.specifications?.storage || "",
+      display: product.specifications?.display || "",
       warranty: product.warranty || "",
-      isFeatured:
-        product.isFeatured || false,
+      isFeatured: product.isFeatured || false,
     });
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // Load existing images — first one is always the cover
+    const existingImages = (product.images || []).map((url, i) => ({
+      file: null,
+      preview: url,
+      url,
+    }));
+    setImages(existingImages);
+    setCoverIndex(0);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /* ── delete ─────────────────────────────────────────── */
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(
-      "Delete this product?"
-    );
-
-    if (!confirmed) return;
-
+    if (!window.confirm("Delete this product?")) return;
     try {
-      const data = await deleteProduct(
-        id,
-        token
-      );
-
-      toast.success(
-        data.message ||
-          "Product deleted successfully"
-      );
-
+      const data = await deleteProduct(id, token);
+      toast.success(data.message || "Product deleted successfully");
       fetchData();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to delete product"
-      );
+      toast.error(error.response?.data?.message || "Failed to delete product");
     }
   };
 
+  /* ── render ─────────────────────────────────────────── */
   return (
     <main className="mx-auto max-w-7xl px-6 py-16">
       <div className="mb-12">
         <p className="mb-3 text-sm uppercase tracking-[0.35em] text-velvet-light">
           Admin
         </p>
-
         <h1 className="font-display text-6xl italic tracking-tight">
           Products
         </h1>
       </div>
 
+      {/* ── FORM ── */}
       <div className="mb-12 rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-3xl italic">
-            {editingProduct
-              ? "Edit Product"
-              : "Create Product"}
+            {editingProduct ? "Edit Product" : "Create Product"}
           </h2>
-
           {editingProduct && (
             <button
               onClick={resetForm}
@@ -262,10 +279,112 @@ const AdminProducts = () => {
           )}
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-5 md:grid-cols-2"
-        >
+        <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
+
+          {/* ── IMAGE UPLOAD SECTION ── */}
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-parchment-100/60">
+                Product Images
+                <span className="ml-2 text-xs text-parchment-100/40">
+                  — first image or the one marked with ★ will be the cover
+                </span>
+              </p>
+              <label
+                htmlFor="product-images-input"
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-graphite-700 px-4 py-2 text-sm text-parchment-100/70 transition hover:border-velvet hover:text-parchment-50"
+              >
+                <UploadCloud size={16} />
+                Add Images
+              </label>
+              <input
+                ref={fileInputRef}
+                id="product-images-input"
+                type="file"
+                accept="image/jpg,image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleImagePick}
+                className="hidden"
+              />
+            </div>
+
+            {images.length === 0 ? (
+              /* Empty drop zone */
+              <label
+                htmlFor="product-images-input"
+                className="flex h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-graphite-600 bg-graphite-900 transition hover:border-velvet"
+              >
+                <UploadCloud size={32} className="text-parchment-100/30" />
+                <p className="text-sm text-parchment-100/50">
+                  Click to upload product images
+                </p>
+                <p className="text-xs text-parchment-100/30">
+                  JPG, PNG or WEBP — max 5 MB each — multiple allowed
+                </p>
+              </label>
+            ) : (
+              /* Image grid */
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {images.map((img, index) => (
+                  <div
+                    key={index}
+                    className={`group relative overflow-hidden rounded-2xl border-2 transition ${
+                      coverIndex === index
+                        ? "border-velvet"
+                        : "border-graphite-700"
+                    }`}
+                  >
+                    <img
+                      src={img.preview}
+                      alt={`Product image ${index + 1}`}
+                      className="h-36 w-full object-cover"
+                    />
+
+                    {/* Cover badge */}
+                    {coverIndex === index && (
+                      <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-velvet px-2 py-1 text-xs font-medium text-parchment-50">
+                        <Star size={10} fill="currentColor" />
+                        Cover
+                      </div>
+                    )}
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-graphite-900/75 opacity-0 transition group-hover:opacity-100">
+                      {coverIndex !== index && (
+                        <button
+                          type="button"
+                          onClick={() => setCover(index)}
+                          className="flex items-center gap-1.5 rounded-lg bg-velvet px-3 py-1.5 text-xs font-medium text-parchment-50 transition hover:bg-velvet-light"
+                        >
+                          <Star size={12} />
+                          Set as Cover
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="flex items-center gap-1.5 rounded-lg border border-error px-3 py-1.5 text-xs text-red-300 transition hover:bg-error/20"
+                      >
+                        <X size={12} />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add more tile */}
+                <label
+                  htmlFor="product-images-input"
+                  className="flex h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-graphite-600 bg-graphite-900 transition hover:border-velvet"
+                >
+                  <Plus size={22} className="text-parchment-100/30" />
+                  <p className="text-xs text-parchment-100/40">Add more</p>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* ── TEXT FIELDS ── */}
           <input
             type="text"
             name="name"
@@ -293,18 +412,23 @@ const AdminProducts = () => {
             required
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
           >
-            <option value="">
-              Select Category
-            </option>
-
-            {categories.map((category) => (
-              <option
-                key={category._id}
-                value={category._id}
-              >
-                {category.name}
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
               </option>
             ))}
+          </select>
+
+          <select
+            name="condition"
+            value={formData.condition}
+            onChange={handleChange}
+            className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
+          >
+            <option value="new">New</option>
+            <option value="used">Used</option>
+            <option value="refurbished">Refurbished</option>
           </select>
 
           <input
@@ -318,9 +442,18 @@ const AdminProducts = () => {
           />
 
           <input
+            type="text"
+            name="warranty"
+            placeholder="Warranty (e.g. 6 months)"
+            value={formData.warranty}
+            onChange={handleChange}
+            className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
+          />
+
+          <input
             type="number"
             name="price"
-            placeholder="Price"
+            placeholder="Price (Rs.)"
             value={formData.price}
             onChange={handleChange}
             required
@@ -330,21 +463,11 @@ const AdminProducts = () => {
           <input
             type="number"
             name="stock"
-            placeholder="Stock"
+            placeholder="Stock quantity"
             value={formData.stock}
             onChange={handleChange}
             required
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
-          />
-
-          <input
-            type="text"
-            name="image"
-            placeholder="Image URL"
-            value={formData.image}
-            onChange={handleChange}
-            required
-            className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet md:col-span-2"
           />
 
           <textarea
@@ -352,10 +475,15 @@ const AdminProducts = () => {
             placeholder="Product description"
             value={formData.description}
             onChange={handleChange}
-            rows="5"
+            rows="4"
             required
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet md:col-span-2"
           />
+
+          {/* Specifications */}
+          <p className="text-xs uppercase tracking-widest text-parchment-100/30 md:col-span-2">
+            Specifications
+          </p>
 
           <input
             type="text"
@@ -393,35 +521,29 @@ const AdminProducts = () => {
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
           />
 
-          <input
-            type="text"
-            name="warranty"
-            placeholder="Warranty"
-            value={formData.warranty}
-            onChange={handleChange}
-            className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
-          />
-
-          <label className="flex items-center gap-3 rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3">
+          {/* Featured */}
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 transition hover:border-velvet">
             <input
               type="checkbox"
               name="isFeatured"
               checked={formData.isFeatured}
               onChange={handleChange}
+              className="accent-velvet"
             />
-
-            Featured Product
+            Mark as Featured
           </label>
 
+          {/* Submit */}
           <button
             type="submit"
-            disabled={submitting}
-            className="flex items-center justify-center gap-2 rounded-xl bg-velvet px-6 py-4 font-medium text-parchment-50 transition hover:bg-velvet-light active:scale-[0.98] md:w-fit"
+            disabled={submitting || uploading}
+            className="flex items-center justify-center gap-2 rounded-xl bg-velvet px-6 py-4 font-medium text-parchment-50 transition hover:bg-velvet-light active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 md:w-fit"
           >
             <Plus size={18} />
-
-            {submitting
-              ? "Please wait..."
+            {uploading
+              ? "Uploading images..."
+              : submitting
+              ? "Saving..."
               : editingProduct
               ? "Update Product"
               : "Create Product"}
@@ -429,9 +551,10 @@ const AdminProducts = () => {
         </form>
       </div>
 
+      {/* ── PRODUCT LIST ── */}
       {loading ? (
-        <div className="flex justify-center py-20">
-          Loading...
+        <div className="flex justify-center py-20 text-parchment-100/50">
+          Loading products...
         </div>
       ) : products.length === 0 ? (
         <div className="rounded-3xl border border-graphite-700 bg-graphite-800 p-10 text-center text-parchment-100/60">
@@ -444,44 +567,59 @@ const AdminProducts = () => {
               key={product._id}
               className="overflow-hidden rounded-3xl border border-graphite-700 bg-graphite-800"
             >
-              <img
-                src={product.images?.[0]}
-                alt={product.name}
-                className="h-64 w-full object-cover"
-              />
+              {/* Cover image + image count badge */}
+              <div className="relative">
+                {product.images?.[0] ? (
+                  <img
+                    src={product.images[0]}
+                    alt={product.name}
+                    className="h-56 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-56 items-center justify-center bg-graphite-900 text-parchment-100/20">
+                    <ImageIcon size={40} />
+                  </div>
+                )}
+                {product.images?.length > 1 && (
+                  <span className="absolute bottom-3 right-3 rounded-full bg-graphite-900/80 px-2.5 py-1 text-xs text-parchment-100/70 backdrop-blur">
+                    +{product.images.length - 1} more
+                  </span>
+                )}
+              </div>
 
               <div className="p-6">
-                <p className="text-sm text-parchment-100/60">
-                  {product.brand}
-                </p>
-
+                <p className="text-sm text-parchment-100/50">{product.brand}</p>
                 <h2 className="mt-1 font-display text-3xl italic tracking-tight">
                   {product.name}
                 </h2>
-
-                <p className="mt-4 text-xl font-medium">
-                  Rs.{" "}
-                  {product.price?.toLocaleString()}
-                </p>
-
-                <div className="mt-6 flex items-center gap-3">
-                  <button
-                    onClick={() =>
-                      handleEdit(product)
-                    }
-                    className="flex items-center gap-2 rounded-xl border border-graphite-700 px-4 py-3 text-sm transition hover:border-velvet"
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="text-xl font-medium">
+                    Rs. {product.price?.toLocaleString()}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      product.stock > 0
+                        ? "bg-success/20 text-green-300"
+                        : "bg-error/20 text-red-300"
+                    }`}
                   >
-                    <Pencil size={16} />
+                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                  </span>
+                </div>
+
+                <div className="mt-5 flex items-center gap-3">
+                  <button
+                    onClick={() => handleEdit(product)}
+                    className="flex items-center gap-2 rounded-xl border border-graphite-700 px-4 py-2.5 text-sm transition hover:border-velvet"
+                  >
+                    <Pencil size={15} />
                     Edit
                   </button>
-
                   <button
-                    onClick={() =>
-                      handleDelete(product._id)
-                    }
-                    className="flex items-center gap-2 rounded-xl border border-error px-4 py-3 text-sm text-red-300 transition hover:bg-error/20"
+                    onClick={() => handleDelete(product._id)}
+                    className="flex items-center gap-2 rounded-xl border border-error px-4 py-2.5 text-sm text-red-300 transition hover:bg-error/20"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                     Delete
                   </button>
                 </div>

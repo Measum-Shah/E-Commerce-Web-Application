@@ -41,13 +41,27 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-graphite-700 bg-graphite-900/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link
           to="/"
           onClick={closeMenu}
-          className="font-display text-3xl italic tracking-tight text-parchment-50"
+          className="flex items-center gap-3"
         >
-          Premier
+          <img
+            src="/logo.png"
+            alt="Premier Computers Logo"
+            className="h-11 w-11 rounded-xl object-cover"
+          />
+
+          <div className="flex flex-col leading-none">
+            <span className="font-display text-2xl italic tracking-tight text-parchment-50">
+              Premier
+            </span>
+
+            <span className="mt-1 text-[11px] font-medium uppercase tracking-[0.28em] text-parchment-100/55">
+              Computers
+            </span>
+          </div>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
