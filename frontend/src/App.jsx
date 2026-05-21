@@ -23,6 +23,7 @@ import AdminContact from "./pages/admin/AdminContact";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import AdminPromo from "./pages/admin/AdminPromo";
 
 function App() {
   const location = useLocation();
@@ -123,7 +124,17 @@ function App() {
                 <AdminContact />
               </AdminRoute>
             }
-          />        
+            
+          /> 
+           <Route
+            path="/admin/promo"
+            element={
+              <AdminRoute>
+                <AdminPromo />
+              </AdminRoute>
+            }
+            
+          />           
         
         </Routes>
       </main>

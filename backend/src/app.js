@@ -11,6 +11,7 @@ import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
+import promoRoutes from "./routes/promo.routes.js";
 
 
 
@@ -66,7 +67,7 @@ app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/upload", uploadRoutes);
-
+app.use("/api/v1/promos", promoRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

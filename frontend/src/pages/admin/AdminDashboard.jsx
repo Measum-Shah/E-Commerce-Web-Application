@@ -4,6 +4,8 @@ import {
   Boxes,
   LayoutGrid,
   ShoppingCart,
+  MessageSquare,
+  Tag,
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -33,8 +35,15 @@ const AdminDashboard = () => {
       title: "Manage Contact Messages",
       description:
         "Read and reply messages",
-      icon: ShoppingCart,
+      icon: MessageSquare,
       link: "/admin/contact",
+    },
+      {
+      title: "Manage Promo Codes",
+      description:
+        "Add and Remove Promo codes and offers",
+      icon: Tag,
+      link: "/admin/promo",
     },
   ];
 

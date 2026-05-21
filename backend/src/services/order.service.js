@@ -10,78 +10,125 @@ import paymentMethods from "../constants/paymentMethods.js";
 
 // can later change to transsaction type
 
-const createOrder = async (userId, data) => {
-  const cart = await Cart.findOne({ user: userId });
+// const createOrder = async (userId, data) => {
+//   const cart = await Cart.findOne({ user: userId });
 
-  if (!cart || cart.items.length === 0) {
-    throw new Error("Cart is empty");
+//   if (!cart || cart.items.length === 0) {
+//     throw new Error("Cart is empty");
+//   }
+
+//   for (const item of cart.items) {
+//     const product = await Product.findById(item.product);
+
+//     if (!product) {
+//       throw new Error(`${item.name} not found`);
+//     }
+
+//     if (product.stock < item.quantity) {
+//       throw new Error(`${product.name} has insufficient stock`);
+//     }
+
+//     product.stock = product.stock - item.quantity;
+
+//     await product.save();
+//   }
+
+//   const subtotal = cart.totalAmount;
+//   const deliveryFee = data.deliveryFee || 0;
+//   const discount = data.discount || 0;
+
+//   const totalAmount = subtotal + deliveryFee - discount;
+
+//   const order = await Order.create({
+//     user: userId,
+
+//     items: cart.items.map((item) => ({
+//       product: item.product,
+//       name: item.name,
+//       price: item.price,
+//       quantity: item.quantity,
+//       image: item.image,
+//       subtotal: item.subtotal
+//     })),
+
+//     shippingAddress: data.shippingAddress,
+
+//     paymentMethod:
+//       data.paymentMethod || paymentMethods.COD,
+
+//     paymentStatus: "pending",
+
+//     orderStatus: orderStatus.PENDING,
+
+//     totalItems: cart.totalItems,
+
+//     subtotal,
+
+//     deliveryFee,
+
+//     discount,
+
+//     totalAmount,
+
+//     notes: data.notes
+//   });
+
+//   cart.items = [];
+//   cart.totalItems = 0;
+//   cart.totalAmount = 0;
+
+//   await cart.save();
+
+//   return order;
+// };
+
+const createOrder = async (userId, body) => {
+  const { shippingAddress, paymentMethod, promoCode, notes } = body;
+ 
+  // Get user's cart
+  const cart = await Cart.findOne({ user: userId }).populate("items.product");
+  if (!cart || cart.items.length === 0) throw new AppError("Cart is empty", 400);
+ 
+  let discount = 0;
+  let freeShipping = false;
+  let appliedPromo = null;
+ 
+  if (promoCode) {
+    const promoResult = await applyPromoCode(promoCode, userId, cart);
+    discount = promoResult.discountAmount;
+    freeShipping = promoResult.promo.freeShipping;
+    appliedPromo = promoResult.promo;
   }
-
-  for (const item of cart.items) {
-    const product = await Product.findById(item.product);
-
-    if (!product) {
-      throw new Error(`${item.name} not found`);
-    }
-
-    if (product.stock < item.quantity) {
-      throw new Error(`${product.name} has insufficient stock`);
-    }
-
-    product.stock = product.stock - item.quantity;
-
-    await product.save();
-  }
-
-  const subtotal = cart.totalAmount;
-  const deliveryFee = data.deliveryFee || 0;
-  const discount = data.discount || 0;
-
-  const totalAmount = subtotal + deliveryFee - discount;
-
+ 
+  const deliveryFee = freeShipping ? 0 : 150; // your flat delivery fee
+  const totalAmount = cart.totalAmount - discount + deliveryFee;
+ 
   const order = await Order.create({
     user: userId,
-
-    items: cart.items.map((item) => ({
-      product: item.product,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      image: item.image,
-      subtotal: item.subtotal
-    })),
-
-    shippingAddress: data.shippingAddress,
-
-    paymentMethod:
-      data.paymentMethod || paymentMethods.COD,
-
-    paymentStatus: "pending",
-
-    orderStatus: orderStatus.PENDING,
-
+    items: cart.items,
+    shippingAddress,
+    paymentMethod,
     totalItems: cart.totalItems,
-
-    subtotal,
-
+    subtotal: cart.totalAmount,
     deliveryFee,
-
     discount,
-
-    totalAmount,
-
-    notes: data.notes
+    totalAmount: Math.max(0, totalAmount),
+    notes,
+    promoCode: appliedPromo?.code || null
   });
-
-  cart.items = [];
-  cart.totalItems = 0;
-  cart.totalAmount = 0;
-
-  await cart.save();
-
+ 
+  // Increment promo usage count
+  if (appliedPromo) {
+    await incrementPromoUsage(appliedPromo._id);
+  }
+ 
+  // Clear cart after order
+  await Cart.findOneAndUpdate({ user: userId }, { items: [], totalItems: 0, totalAmount: 0 });
+ 
   return order;
 };
-
+ 
+ 
 const getMyOrders = async (userId) => {
   const orders = await Order.find({ user: userId })
     .sort({ createdAt: -1 })
