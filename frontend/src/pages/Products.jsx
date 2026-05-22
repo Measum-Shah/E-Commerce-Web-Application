@@ -12,11 +12,10 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [search, setSearch] = useState("");
 
-  const { withLoader } = useLoader();
+  const { withLoader, loading } = useLoader();
 
   const fetchData = async () => {
     await withLoader(async () => {
-      // await new Promise((resolve) => setTimeout(resolve, 10000)); // TODO: remove this
       try {
         const productData = await getAllProducts();
         const categoryData = await getAllCategories();
@@ -86,7 +85,7 @@ const Products = () => {
         </select>
       </div>
 
-      {filteredProducts.length === 0 ? (
+      {!loading && filteredProducts.length === 0 ? (
         <div className="rounded-2xl border border-graphite-700 bg-graphite-800 p-10 text-center text-parchment-100/60">
           No products found.
         </div>

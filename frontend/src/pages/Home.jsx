@@ -106,7 +106,7 @@ const TESTIMONIALS = [
 ];
 
 /* ─── section component ───────────────────────────────── */
-const CategorySection = ({ config, products, index }) => {
+const CategorySection = ({ config, products, index, loading }) => {
   const items = filterByCategory(products, config.key).slice(0, 4);
   const isEven = index % 2 === 0;
 
@@ -151,7 +151,7 @@ const CategorySection = ({ config, products, index }) => {
         </div>
 
         {/* products grid */}
-        {items.length === 0 ? (
+        {!loading && items.length === 0 ? (
           <div className="flex h-52 items-center justify-center rounded-3xl border border-dashed border-graphite-700 text-parchment-100/40">
             No {config.label.toLowerCase()} listed yet — check back soon.
           </div>
@@ -170,7 +170,7 @@ const CategorySection = ({ config, products, index }) => {
 /* ─── main component ──────────────────────────────────── */
 const Home = () => {
   const [products, setProducts] = useState([]);
-  const { withLoader } = useLoader();
+  const { withLoader, loading } = useLoader();
 
   useEffect(() => {
     const load = async () => {
@@ -295,9 +295,9 @@ const Home = () => {
 
               {/* floating price tag */}
               <div className="absolute -right-6 top-10 rounded-2xl border border-graphite-700 bg-graphite-900/95 px-4 py-3 backdrop-blur-xl">
-                <p className="text-xs text-parchment-100/50">Starting from</p>
+                <p className="text-xs text-parchment-100/50">Building Trust</p>
                 <p className="font-display text-2xl italic text-parchment-50">
-                  Rs. 45,000
+                  is our first priority
                 </p>
               </div>
             </div>
@@ -340,6 +340,7 @@ const Home = () => {
             config={config}
             products={products}
             index={i}
+            loading={loading}
           />
         ))}
       </div>
