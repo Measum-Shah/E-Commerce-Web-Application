@@ -9,7 +9,16 @@ import {
 
 const createOrderController = async (req, res, next) => {
   try {
-    const order = await createOrder(req.user._id, req.body);
+    // ✅ FIX: Checkout sends `couponCode` but Order model stores `promoCode`
+    //         Remap here so the order service receives the correct field name.
+    const { couponCode, ...rest } = req.body;
+
+    const orderData = {
+      ...rest,
+      promoCode: couponCode || req.body.promoCode || null
+    };
+
+    const order = await createOrder(req.user._id, orderData);
 
     res.status(201).json({
       success: true,

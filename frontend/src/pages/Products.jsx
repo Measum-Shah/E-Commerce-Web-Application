@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLoader } from "../context/LoaderContext";
 
 import { getAllProducts } from "../api/productApi";
 import { getAllCategories } from "../api/categoryApi";
@@ -11,16 +12,21 @@ const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [search, setSearch] = useState("");
 
-  const fetchData = async () => {
-    try {
-      const productData = await getAllProducts();
-      const categoryData = await getAllCategories();
+  const { withLoader } = useLoader();
 
-      setProducts(productData.products || productData.data || []);
-      setCategories(categoryData.categories || categoryData.data || []);
-    } catch (error) {
-      console.log(error.response?.data?.message || error.message);
-    }
+  const fetchData = async () => {
+    await withLoader(async () => {
+      // await new Promise((resolve) => setTimeout(resolve, 10000)); // TODO: remove this
+      try {
+        const productData = await getAllProducts();
+        const categoryData = await getAllCategories();
+
+        setProducts(productData.products || productData.data || []);
+        setCategories(categoryData.categories || categoryData.data || []);
+      } catch (error) {
+        console.log(error.response?.data?.message || error.message);
+      }
+    });
   };
 
   useEffect(() => {

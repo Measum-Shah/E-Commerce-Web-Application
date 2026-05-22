@@ -7,6 +7,7 @@ import Product from "../models/Product.js";
 import orderStatus from "../constants/orderStatus.js";
 import paymentMethods from "../constants/paymentMethods.js";
 
+import { applyPromoCode, incrementPromoUsage } from "./promo.service.js";
 
 // can later change to transsaction type
 
@@ -82,49 +83,106 @@ import paymentMethods from "../constants/paymentMethods.js";
 //   return order;
 // };
 
-const createOrder = async (userId, body) => {
-  const { shippingAddress, paymentMethod, promoCode, notes } = body;
+// const createOrder = async (userId, body) => {
+//   const { shippingAddress, paymentMethod, promoCode, notes } = body;
  
-  // Get user's cart
+//   // Get user's cart
+//   const cart = await Cart.findOne({ user: userId }).populate("items.product");
+//   if (!cart || cart.items.length === 0) throw new AppError("Cart is empty", 400);
+ 
+//   let discount = 0;
+//   let freeShipping = false;
+//   let appliedPromo = null;
+ 
+//   if (promoCode) {
+//     const promoResult = await applyPromoCode(promoCode, userId, cart);
+//     discount = promoResult.discountAmount;
+//     freeShipping = promoResult.promo.freeShipping;
+//     appliedPromo = promoResult.promo;
+//   }
+ 
+//   const deliveryFee = freeShipping ? 0 : 150; // your flat delivery fee
+//   const totalAmount = cart.totalAmount - discount + deliveryFee;
+ 
+//   const order = await Order.create({
+//     user: userId,
+//     items: cart.items,
+//     shippingAddress,
+//     paymentMethod,
+//     totalItems: cart.totalItems,
+//     subtotal: cart.totalAmount,
+//     deliveryFee,
+//     discount,
+//     totalAmount: Math.max(0, totalAmount),
+//     notes,
+//     promoCode: appliedPromo?.code || null
+//   });
+ 
+//   // Increment promo usage count
+//   if (appliedPromo) {
+//     await incrementPromoUsage(appliedPromo._id);
+//   }
+ 
+//   // Clear cart after order
+//   await Cart.findOneAndUpdate({ user: userId }, { items: [], totalItems: 0, totalAmount: 0 });
+ 
+//   return order;
+// };
+
+const createOrder = async (userId, body) => {
+  const { shippingAddress, paymentMethod, promoCode, notes, deliveryFee: clientDeliveryFee, discount: clientDiscount } = body;
+
   const cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart || cart.items.length === 0) throw new AppError("Cart is empty", 400);
- 
+
   let discount = 0;
   let freeShipping = false;
   let appliedPromo = null;
- 
+
   if (promoCode) {
-    const promoResult = await applyPromoCode(promoCode, userId, cart);
-    discount = promoResult.discountAmount;
+    const cartPayload = {
+      totalAmount: cart.totalAmount,
+      items: cart.items.map((item) => ({
+        product:  item.product._id || item.product,
+        category: item.product?.category,
+        price:    item.price ?? item.product?.price ?? 0,
+        quantity: item.quantity,
+        subtotal: item.subtotal ?? ((item.price ?? item.product?.price ?? 0) * item.quantity),
+      })),
+    };
+
+    const promoResult = await applyPromoCode(promoCode, userId, cartPayload);
+    discount     = promoResult.discountAmount;
     freeShipping = promoResult.promo.freeShipping;
     appliedPromo = promoResult.promo;
   }
- 
-  const deliveryFee = freeShipping ? 0 : 150; // your flat delivery fee
-  const totalAmount = cart.totalAmount - discount + deliveryFee;
- 
+
+  // ✅ FIX: use deliveryFee from Checkout (300), not hardcoded 150
+  //         also respect free_shipping promo
+  const deliveryFee = freeShipping ? 0 : (clientDeliveryFee ?? 300);
+  const totalAmount = Math.max(0, cart.totalAmount - discount + deliveryFee);
+
   const order = await Order.create({
     user: userId,
     items: cart.items,
     shippingAddress,
     paymentMethod,
-    totalItems: cart.totalItems,
-    subtotal: cart.totalAmount,
+    totalItems:  cart.totalItems,
+    subtotal:    cart.totalAmount,
     deliveryFee,
     discount,
-    totalAmount: Math.max(0, totalAmount),
+    totalAmount,
     notes,
     promoCode: appliedPromo?.code || null
   });
- 
-  // Increment promo usage count
-  if (appliedPromo) {
-    await incrementPromoUsage(appliedPromo._id);
-  }
- 
-  // Clear cart after order
-  await Cart.findOneAndUpdate({ user: userId }, { items: [], totalItems: 0, totalAmount: 0 });
- 
+
+  if (appliedPromo) await incrementPromoUsage(appliedPromo._id);
+
+  await Cart.findOneAndUpdate(
+    { user: userId },
+    { items: [], totalItems: 0, totalAmount: 0 }
+  );
+
   return order;
 };
  

@@ -119,7 +119,6 @@ export const togglePromoStatus = async (id) => {
   }
 
   promo.isActive = !promo.isActive;
-
   await promo.save();
 
   return promo;
@@ -128,9 +127,7 @@ export const togglePromoStatus = async (id) => {
 // ─── User: Validate & apply a promo code to cart ─────────────────────────────
 
 export const applyPromoCode = async (code, userId, cart) => {
-  const promo = await Promo.findOne({
-    code: code.toUpperCase()
-  });
+  const promo = await Promo.findOne({ code: code.toUpperCase() });
 
   if (!promo) {
     const error = new Error("Invalid promo code");
@@ -158,21 +155,23 @@ export const applyPromoCode = async (code, userId, cart) => {
     throw error;
   }
 
-  if (
-    promo.usageLimit !== null &&
-    promo.usedCount >= promo.usageLimit
-  ) {
-    const error = new Error(
-      "This promo code has reached its usage limit"
-    );
+  if (promo.usageLimit !== null && promo.usedCount >= promo.usageLimit) {
+    const error = new Error("This promo code has reached its usage limit");
     error.statusCode = 400;
     throw error;
   }
 
-  // Per-user limit check — requires Order model usage tracking in production
-  // For now we track via a usedBy array or leave to order service
+  // ✅ FIX: cart.totalAmount may not exist — compute it from items as fallback
+  const cartItems = cart.items || [];
 
-  if (cart.totalAmount < promo.minOrderAmount) {
+  const computedTotal = cartItems.reduce(
+    (sum, item) => sum + (item.subtotal ?? item.price * item.quantity),
+    0
+  );
+
+  const cartTotal = cart.totalAmount ?? computedTotal;
+
+  if (cartTotal < promo.minOrderAmount) {
     const error = new Error(
       `Minimum order amount of Rs. ${promo.minOrderAmount} required for this promo`
     );
@@ -181,62 +180,49 @@ export const applyPromoCode = async (code, userId, cart) => {
   }
 
   let discountAmount = 0;
-  let applicableItems = cart.items;
+  let applicableItems = cartItems;
 
   // Filter items to applicable products/categories if set
-
   if (promo.applicableProducts.length > 0) {
-    applicableItems = cart.items.filter((item) =>
+    applicableItems = cartItems.filter((item) =>
       promo.applicableProducts.some(
         (p) => p.toString() === item.product.toString()
       )
     );
   } else if (promo.applicableCategories.length > 0) {
-    // Requires product category to be populated on cart items
-
-    applicableItems = cart.items.filter((item) =>
+    applicableItems = cartItems.filter((item) =>
       promo.applicableCategories.some(
         (c) => c.toString() === item.category?.toString()
       )
     );
   }
 
+  // ✅ FIX: use item.subtotal if present, otherwise compute price × quantity
   const applicableTotal = applicableItems.reduce(
-    (sum, item) => sum + item.subtotal,
+    (sum, item) => sum + (item.subtotal ?? item.price * item.quantity),
     0
   );
 
   switch (promo.type) {
     case "percentage":
-      discountAmount =
-        (applicableTotal * promo.discountValue) / 100;
+      discountAmount = (applicableTotal * promo.discountValue) / 100;
 
       if (promo.maxDiscountAmount) {
-        discountAmount = Math.min(
-          discountAmount,
-          promo.maxDiscountAmount
-        );
+        discountAmount = Math.min(discountAmount, promo.maxDiscountAmount);
       }
-
       break;
 
     case "fixed":
-      discountAmount = Math.min(
-        promo.discountValue,
-        applicableTotal
-      );
-
+      discountAmount = Math.min(promo.discountValue, applicableTotal);
       break;
 
     case "free_shipping":
       discountAmount = 0;
-      // handled separately in order totals
-
+      // delivery fee waiver is handled in Checkout via freeShipping flag
       break;
 
     case "special_offer":
       // Buy X get Y logic
-
       if (promo.specialOffer?.buyQuantity) {
         const totalQty = applicableItems.reduce(
           (sum, item) => sum + item.quantity,
@@ -247,12 +233,9 @@ export const applyPromoCode = async (code, userId, cart) => {
           totalQty / promo.specialOffer.buyQuantity
         );
 
-        const freeQty =
-          freeRounds *
-          (promo.specialOffer.getQuantity || 1);
+        const freeQty = freeRounds * (promo.specialOffer.getQuantity || 1);
 
         // Discount = cheapest items × freeQty × getDiscount%
-
         const sortedItems = [...applicableItems].sort(
           (a, b) => a.price - b.price
         );
@@ -272,7 +255,6 @@ export const applyPromoCode = async (code, userId, cart) => {
           remaining -= qty;
         }
       }
-
       break;
   }
 
@@ -280,19 +262,14 @@ export const applyPromoCode = async (code, userId, cart) => {
 
   return {
     promo: {
-      _id: promo._id,
-      code: promo.code,
-      type: promo.type,
+      _id:         promo._id,
+      code:        promo.code,
+      type:        promo.type,
       description: promo.description,
       freeShipping: promo.type === "free_shipping"
     },
-
     discountAmount,
-
-    newTotal: Math.max(
-      0,
-      cart.totalAmount - discountAmount
-    )
+    newTotal: Math.max(0, cartTotal - discountAmount)
   };
 };
 

@@ -1,12 +1,24 @@
 import api from "./axios";
 
-// Public route - NO token required
+// ─── User: Apply promo code (authenticated) ───────────────────────────────────
+// ✅ FIX: was missing — Checkout needs an authenticated apply route
+export const applyPromoCode = async (code, cart, token) => {
+  const response = await api.post(
+    "/promos/apply",
+    { code, cart },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;  // { success, message, data: { promo, discountAmount, newTotal } }
+};
+
+// ✅ KEPT for backward compatibility (public / guest validation if needed)
 export const validateCoupon = async (code, cart) => {
   const response = await api.post("/promos/validate", { code, cart });
   return response.data;
 };
 
-// Admin routes - token passed manually in Authorization header
+// ─── Admin routes ─────────────────────────────────────────────────────────────
+
 export const getAllPromos = async (params = {}, token) => {
   const response = await api.get("/promos", {
     params,

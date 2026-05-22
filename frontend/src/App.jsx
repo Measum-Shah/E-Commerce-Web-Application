@@ -24,6 +24,7 @@ import AdminContact from "./pages/admin/AdminContact";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AdminPromo from "./pages/admin/AdminPromo";
+import Loader from "./components/Loader";
 
 function App() {
   const location = useLocation();
@@ -37,7 +38,7 @@ function App() {
       {!hideLayout && <Navbar />}
 
       <Toaster position="top-right" />
-
+      <Loader/>
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />

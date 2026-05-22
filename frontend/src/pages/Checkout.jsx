@@ -1,17 +1,8 @@
-// ─────────────────────────────────────────────────────────────
-// FIXED CHECKOUT.jsx
-// - Promo discount updates instantly
-// - Total updates correctly
-// - No undefined promo values
-// - UI kept SAME
-// - Uses your backend route: /promos/apply
-// ─────────────────────────────────────────────────────────────
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
-import api from "../api/axios";
+import { applyPromoCode } from "../api/promoApi";  // ✅ use promoApi instead of raw api call
 import { placeOrder } from "../api/orderApi";
 
 import { useAuth } from "../context/AuthContext";
@@ -106,14 +97,13 @@ const Checkout = () => {
   const [touched, setTouched] = useState({});
 
   // ─────────────────────────────────────────────
-  // CART
+  // CART TOTALS
   // ─────────────────────────────────────────────
 
   const items = cart?.items || [];
 
   const subtotal = items.reduce(
-    (total, item) =>
-      total + item.price * item.quantity,
+    (total, item) => total + item.price * item.quantity,
     0
   );
 
@@ -209,55 +199,42 @@ const Checkout = () => {
 
     try {
       setCouponLoading(true);
-
       setCouponError("");
 
-      const response = await api.post(
-        "/promos/apply",
-        {
-          code,
-          cart,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // ✅ FIX: Build a cart payload with guaranteed fields
+      //         the service needs: items[].subtotal and totalAmount
+      const cartPayload = {
+        items: items.map((item) => ({
+          ...item,
+          subtotal: item.subtotal ?? item.price * item.quantity,
+        })),
+        totalAmount: subtotal,           // ✅ pass computed subtotal as totalAmount
+      };
 
-      const data = response.data;
+      // ✅ FIX: use applyPromoCode from promoApi (handles auth header)
+      const response = await applyPromoCode(code, cartPayload, token);
 
-      // IMPORTANT FIX
+      // ✅ FIX: controller wraps result inside response.data.data
+      //   response.data = { success, message, data: { promo, discountAmount, newTotal } }
+      const result = response?.data;
+
       setAppliedCoupon({
-        code: data?.promo?.code || code,
-
-        type: data?.promo?.type || "",
-
-        description:
-          data?.promo?.description || "",
-
-        freeShipping:
-          data?.promo?.freeShipping || false,
-
-        discountAmount:
-          Number(data?.discountAmount) || 0,
-
-        newTotal:
-          Number(data?.newTotal) || 0,
+        code:           result?.promo?.code        || code,
+        type:           result?.promo?.type        || "",
+        description:    result?.promo?.description || "",
+        freeShipping:   result?.promo?.freeShipping || false,
+        discountAmount: Number(result?.discountAmount) || 0,
+        newTotal:       Number(result?.newTotal)       || 0,
       });
 
       toast.success("Promo code applied");
-
       setCouponInput("");
     } catch (error) {
       const message =
-        error.response?.data?.message ||
-        "Invalid promo code";
+        error.response?.data?.message || "Invalid promo code";
 
       setCouponError(message);
-
       setAppliedCoupon(null);
-
       toast.error(message);
     } finally {
       setCouponLoading(false);
@@ -266,11 +243,8 @@ const Checkout = () => {
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
-
     setCouponInput("");
-
     setCouponError("");
-
     toast.success("Promo removed");
   };
 
@@ -296,43 +270,34 @@ const Checkout = () => {
 
       const payload = {
         shippingAddress: {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          area: formData.area,
+          fullName:   formData.fullName,
+          phone:      formData.phone,
+          address:    formData.address,
+          city:       formData.city,
+          area:       formData.area,
           postalCode: formData.postalCode,
         },
 
         paymentMethod,
-
         deliveryFee,
-
         discount,
 
-        couponCode:
-          appliedCoupon?.code || null,
+        // ✅ FIX: use `promoCode` to match the Order model field name
+        promoCode: appliedCoupon?.code || null,
 
         notes: formData.notes,
       };
 
-      const data = await placeOrder(
-        payload,
-        token
-      );
+      const data = await placeOrder(payload, token);
 
       await clearEntireCart();
 
-      toast.success(
-        data.message ||
-          "Order placed successfully"
-      );
+      toast.success(data.message || "Order placed successfully");
 
       navigate("/orders");
     } catch (error) {
       toast.error(
-        error.response?.data?.message ||
-          "Failed to place order"
+        error.response?.data?.message || "Failed to place order"
       );
     } finally {
       setLoading(false);
@@ -447,13 +412,9 @@ const Checkout = () => {
                 >
                   <input
                     type="radio"
-                    checked={
-                      paymentMethod === option.id
-                    }
+                    checked={paymentMethod === option.id}
                     disabled={!option.available}
-                    onChange={() =>
-                      setPaymentMethod(option.id)
-                    }
+                    onChange={() => setPaymentMethod(option.id)}
                     className="accent-velvet"
                   />
 
@@ -485,9 +446,7 @@ const Checkout = () => {
                 className="flex justify-between"
               >
                 <div>
-                  <p className="text-sm">
-                    {item.name}
-                  </p>
+                  <p className="text-sm">{item.name}</p>
 
                   <p className="text-xs text-parchment-100/50">
                     Qty: {item.quantity}
@@ -496,9 +455,7 @@ const Checkout = () => {
 
                 <p className="text-sm">
                   Rs.{" "}
-                  {(
-                    item.price * item.quantity
-                  ).toLocaleString()}
+                  {(item.price * item.quantity).toLocaleString()}
                 </p>
               </div>
             ))}
@@ -507,15 +464,11 @@ const Checkout = () => {
           <div className="mt-6 space-y-4 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
-
-              <span>
-                Rs. {subtotal.toLocaleString()}
-              </span>
+              <span>Rs. {subtotal.toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between">
               <span>Delivery</span>
-
               <span>
                 {appliedCoupon?.freeShipping
                   ? "FREE"
@@ -557,9 +510,7 @@ const Checkout = () => {
                       placeholder="Promo code"
                       value={couponInput}
                       onChange={(e) =>
-                        setCouponInput(
-                          e.target.value
-                        )
+                        setCouponInput(e.target.value)
                       }
                       className="flex-1 rounded-xl border border-graphite-700 bg-graphite-900 px-3 py-2 text-xs uppercase outline-none transition focus:border-velvet"
                     />
@@ -570,9 +521,7 @@ const Checkout = () => {
                       disabled={couponLoading}
                       className="rounded-xl bg-velvet px-4 py-2 text-xs font-medium text-parchment-50"
                     >
-                      {couponLoading
-                        ? "Checking..."
-                        : "Validate"}
+                      {couponLoading ? "Checking..." : "Apply"}
                     </button>
                   </div>
 
@@ -588,19 +537,13 @@ const Checkout = () => {
             {discount > 0 && (
               <div className="flex justify-between text-green-400">
                 <span>Discount</span>
-
-                <span>
-                  - Rs. {discount.toLocaleString()}
-                </span>
+                <span>- Rs. {discount.toLocaleString()}</span>
               </div>
             )}
 
             <div className="flex justify-between text-lg font-medium border-t border-graphite-700 pt-4">
               <span>Total</span>
-
-              <span>
-                Rs. {total.toLocaleString()}
-              </span>
+              <span>Rs. {total.toLocaleString()}</span>
             </div>
           </div>
 
@@ -609,9 +552,7 @@ const Checkout = () => {
             disabled={loading}
             className="mt-8 w-full rounded-xl bg-velvet px-6 py-4 font-medium text-parchment-50 transition hover:bg-velvet-light disabled:opacity-50"
           >
-            {loading
-              ? "Placing Order..."
-              : "Place Order"}
+            {loading ? "Placing Order..." : "Place Order"}
           </button>
         </aside>
       </form>

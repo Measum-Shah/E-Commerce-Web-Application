@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLoader } from "../context/LoaderContext";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -169,15 +170,18 @@ const CategorySection = ({ config, products, index }) => {
 /* ─── main component ──────────────────────────────────── */
 const Home = () => {
   const [products, setProducts] = useState([]);
+  const { withLoader } = useLoader();
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const data = await getAllProducts();
-        setProducts(data.products || data.data || []);
-      } catch (err) {
-        console.log(err.message);
-      }
+      await withLoader(async () => {
+        try {
+          const data = await getAllProducts();
+          setProducts(data.products || data.data || []);
+        } catch (err) {
+          console.log(err.message);
+        }
+      });
     };
     load();
   }, []);

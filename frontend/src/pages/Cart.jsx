@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "../context/CartContext";
+import { useLoader } from "../context/LoaderContext";
 
 const Cart = () => {
   const {
@@ -12,13 +13,22 @@ const Cart = () => {
     clearEntireCart,
   } = useCart();
 
+  const { withLoader } = useLoader();
+
   const items = cart?.items || [];
 
-  // FIX: was item.product.price which is undefined (price is not in populate fields).
-  // item.price is the correct field stored on the cart item itself.
   const subtotal = items.reduce((total, item) => {
     return total + item.price * item.quantity;
   }, 0);
+
+  const handleUpdateQuantity = (productId, qty) =>
+    withLoader(() => updateItemQuantity(productId, qty));
+
+  const handleRemoveItem = (productId) =>
+    withLoader(() => removeItem(productId));
+
+  const handleClearCart = () =>
+    withLoader(() => clearEntireCart());
 
   if (loading) {
     return (
@@ -43,7 +53,7 @@ const Cart = () => {
 
         {items.length > 0 && (
           <button
-            onClick={clearEntireCart}
+            onClick={handleClearCart}
             className="rounded-xl border border-graphite-700 px-5 py-3 text-sm text-parchment-100 transition hover:border-error hover:text-red-300"
           >
             Clear Cart
@@ -91,7 +101,6 @@ const Cart = () => {
                     {item.name}
                   </h2>
 
-                  {/* FIX: was item.product.price (undefined), now item.price */}
                   <p className="mt-3 text-lg font-medium">
                     Rs. {item.price?.toLocaleString()}
                   </p>
@@ -99,7 +108,7 @@ const Cart = () => {
 
                 <div className="flex flex-col items-end justify-between gap-4">
                   <button
-                    onClick={() => removeItem(item.product._id)}
+                    onClick={() => handleRemoveItem(item.product._id)}
                     className="rounded-xl border border-graphite-700 p-3 text-parchment-100/70 transition hover:border-error hover:text-red-300"
                   >
                     <Trash2 size={18} />
@@ -108,7 +117,7 @@ const Cart = () => {
                   <div className="flex items-center rounded-xl border border-graphite-700">
                     <button
                       onClick={() =>
-                        updateItemQuantity(
+                        handleUpdateQuantity(
                           item.product._id,
                           item.quantity - 1
                         )
@@ -125,7 +134,7 @@ const Cart = () => {
 
                     <button
                       onClick={() =>
-                        updateItemQuantity(
+                        handleUpdateQuantity(
                           item.product._id,
                           item.quantity + 1
                         )
