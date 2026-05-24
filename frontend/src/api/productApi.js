@@ -5,6 +5,12 @@ export const getAllProducts = async () => {
   return response.data;
 };
 
+// ✅ NEW: Fetches only featured + active products for the home page
+export const getFeaturedProducts = async () => {
+  const response = await api.get("/products/featured");
+  return response.data;
+};
+
 export const getProductBySlug = async (slug) => {
   const response = await api.get(`/products/${slug}`);
   return response.data;
@@ -16,7 +22,6 @@ export const createProduct = async (data, token) => {
       Authorization: `Bearer ${token}`,
     },
   });
-
   return response.data;
 };
 
@@ -26,7 +31,6 @@ export const updateProduct = async (id, data, token) => {
       Authorization: `Bearer ${token}`,
     },
   });
-
   return response.data;
 };
 
@@ -36,6 +40,5 @@ export const deleteProduct = async (id, token) => {
       Authorization: `Bearer ${token}`,
     },
   });
-
   return response.data;
 };

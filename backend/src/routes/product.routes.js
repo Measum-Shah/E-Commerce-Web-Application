@@ -3,6 +3,7 @@ import express from "express";
 import {
   createProductController,
   getAllProductsController,
+  getFeaturedProductsController,
   getProductBySlugController,
   updateProductController,
   deleteProductController
@@ -21,6 +22,10 @@ import roles from "../constants/roles.js";
 const router = express.Router();
 
 router.get("/", getAllProductsController);
+
+// ✅ /featured MUST come before /:slug — otherwise Express treats "featured" as a slug
+router.get("/featured", getFeaturedProductsController);
+
 router.get("/:slug", getProductBySlugController);
 
 router.post(

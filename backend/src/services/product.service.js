@@ -9,9 +9,7 @@ const createProduct = async (data) => {
     throw new Error("Category not found");
   }
 
-  const existingProduct = await Product.findOne({
-    name: data.name
-  });
+  const existingProduct = await Product.findOne({ name: data.name });
 
   if (existingProduct) {
     throw new Error("Product already exists");
@@ -44,6 +42,13 @@ const getAllProducts = async () => {
     .sort({ createdAt: -1 });
 };
 
+// ✅ NEW: Returns only active + featured products for the home page
+const getFeaturedProducts = async () => {
+  return await Product.find({ isFeatured: true, isActive: true })
+    .populate("category", "name slug")
+    .sort({ createdAt: -1 });
+};
+
 const getProductBySlug = async (slug) => {
   const product = await Product.findOne({ slug }).populate(
     "category",
@@ -66,11 +71,9 @@ const updateProduct = async (id, data) => {
 
   if (data.category) {
     const categoryExists = await Category.findById(data.category);
-
     if (!categoryExists) {
       throw new Error("Category not found");
     }
-
     product.category = data.category;
   }
 
@@ -79,57 +82,19 @@ const updateProduct = async (id, data) => {
     product.slug = generateSlug(data.name);
   }
 
-  if (data.description !== undefined) {
-    product.description = data.description;
-  }
-
-  if (data.brand !== undefined) {
-    product.brand = data.brand;
-  }
-
-  if (data.sku !== undefined) {
-    product.sku = data.sku;
-  }
-
-  if (data.condition !== undefined) {
-    product.condition = data.condition;
-  }
-
-  if (data.price !== undefined) {
-    product.price = data.price;
-  }
-
-  if (data.stock !== undefined) {
-    product.stock = data.stock;
-  }
-
-  if (data.lowStockThreshold !== undefined) {
-    product.lowStockThreshold = data.lowStockThreshold;
-  }
-
-  if (data.images !== undefined) {
-    product.images = data.images;
-  }
-
-  if (data.specifications !== undefined) {
-    product.specifications = data.specifications;
-  }
-
-  if (data.tags !== undefined) {
-    product.tags = data.tags;
-  }
-
-  if (data.warranty !== undefined) {
-    product.warranty = data.warranty;
-  }
-
-  if (data.isFeatured !== undefined) {
-    product.isFeatured = data.isFeatured;
-  }
-
-  if (data.isActive !== undefined) {
-    product.isActive = data.isActive;
-  }
+  if (data.description !== undefined) product.description = data.description;
+  if (data.brand !== undefined) product.brand = data.brand;
+  if (data.sku !== undefined) product.sku = data.sku;
+  if (data.condition !== undefined) product.condition = data.condition;
+  if (data.price !== undefined) product.price = data.price;
+  if (data.stock !== undefined) product.stock = data.stock;
+  if (data.lowStockThreshold !== undefined) product.lowStockThreshold = data.lowStockThreshold;
+  if (data.images !== undefined) product.images = data.images;
+  if (data.specifications !== undefined) product.specifications = data.specifications;
+  if (data.tags !== undefined) product.tags = data.tags;
+  if (data.warranty !== undefined) product.warranty = data.warranty;
+  if (data.isFeatured !== undefined) product.isFeatured = data.isFeatured;
+  if (data.isActive !== undefined) product.isActive = data.isActive;
 
   await product.save();
 
@@ -151,6 +116,7 @@ const deleteProduct = async (id) => {
 export {
   createProduct,
   getAllProducts,
+  getFeaturedProducts,
   getProductBySlug,
   updateProduct,
   deleteProduct

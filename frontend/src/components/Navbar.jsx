@@ -8,12 +8,16 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const { user, logout, isAuthenticated, isAdmin } = useAuth();
+  const { cart } = useCart();
+
+  const cartCount = cart?.totalItems ?? 0;
 
   const handleLogout = () => {
     logout();
@@ -98,7 +102,16 @@ const Navbar = () => {
                 to="/cart"
                 className="relative flex items-center gap-2 text-parchment-100/70 transition hover:text-parchment-50"
               >
-                <ShoppingCart size={21} strokeWidth={2.4} />
+                <span className="relative">
+                  <ShoppingCart size={21} strokeWidth={2.4} />
+
+                  {cartCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-velvet text-[10px] font-bold leading-none text-parchment-50">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </span>
+
                 <span>Cart</span>
               </NavLink>
 
@@ -142,15 +155,22 @@ const Navbar = () => {
           )}
         </div>
 
+        {/* Mobile right side */}
         <div className="flex items-center gap-3 md:hidden">
           {isAuthenticated && !isAdmin && (
             <Link
               to="/cart"
               onClick={closeMenu}
-              className="rounded-lg border border-graphite-700 p-2 text-parchment-100 transition hover:border-velvet hover:text-parchment-50"
+              className="relative rounded-lg border border-graphite-700 p-2 text-parchment-100 transition hover:border-velvet hover:text-parchment-50"
               aria-label="Cart"
             >
               <ShoppingCart size={22} strokeWidth={2.4} />
+
+              {cartCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-velvet text-[10px] font-bold leading-none text-parchment-50">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </Link>
           )}
 
@@ -221,6 +241,11 @@ const Navbar = () => {
                   <span className="flex items-center gap-2">
                     <ShoppingCart size={20} strokeWidth={2.4} />
                     Cart
+                    {cartCount > 0 && (
+                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-velvet text-[10px] font-bold text-parchment-50">
+                        {cartCount > 99 ? "99+" : cartCount}
+                      </span>
+                    )}
                   </span>
                 </NavLink>
 

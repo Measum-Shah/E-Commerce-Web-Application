@@ -1,6 +1,7 @@
 import {
   createProduct,
   getAllProducts,
+  getFeaturedProducts,
   getProductBySlug,
   updateProduct,
   deleteProduct
@@ -23,6 +24,21 @@ const createProductController = async (req, res, next) => {
 const getAllProductsController = async (req, res, next) => {
   try {
     const products = await getAllProducts();
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ✅ NEW: Returns only isFeatured + isActive products for the home page
+const getFeaturedProductsController = async (req, res, next) => {
+  try {
+    const products = await getFeaturedProducts();
 
     res.status(200).json({
       success: true,
@@ -77,6 +93,7 @@ const deleteProductController = async (req, res, next) => {
 export {
   createProductController,
   getAllProductsController,
+  getFeaturedProductsController,
   getProductBySlugController,
   updateProductController,
   deleteProductController

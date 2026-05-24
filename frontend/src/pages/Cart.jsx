@@ -81,72 +81,85 @@ const Cart = () => {
       ) : (
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           <div className="space-y-5">
-            {items.map((item) => (
-              <div
-                key={item.product._id}
-                className="grid gap-5 rounded-3xl border border-graphite-700 bg-graphite-800 p-5 md:grid-cols-[140px_1fr_auto]"
-              >
-                <img
-                  src={item.product.images?.[0]}
-                  alt={item.product.name}
-                  className="h-36 w-full rounded-2xl object-cover"
-                />
+            {items.map((item) => {
+              // ✅ item.product may be a populated object or just an ID string —
+              //    use the stored cart fields (item.name, item.price, item.image)
+              //    as the primary source of truth, and fall back gracefully.
+              const productId =
+                item.product?._id?.toString() ?? item.product?.toString();
 
-                <div>
-                  <p className="text-sm text-parchment-100/60">
-                    {item.product.brand}
-                  </p>
+              const productImage =
+                item.product?.images?.[0] ?? item.image ?? null;
 
-                  <h2 className="mt-1 font-display text-3xl italic">
-                    {item.name}
-                  </h2>
+              const productBrand = item.product?.brand ?? null;
 
-                  <p className="mt-3 text-lg font-medium">
-                    Rs. {item.price?.toLocaleString()}
-                  </p>
-                </div>
+              return (
+                <div
+                  key={productId}
+                  className="grid gap-5 rounded-3xl border border-graphite-700 bg-graphite-800 p-5 md:grid-cols-[140px_1fr_auto]"
+                >
+                  {productImage ? (
+                    <img
+                      src={productImage}
+                      alt={item.name}
+                      className="h-36 w-full rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="h-36 w-full rounded-2xl bg-graphite-700" />
+                  )}
 
-                <div className="flex flex-col items-end justify-between gap-4">
-                  <button
-                    onClick={() => handleRemoveItem(item.product._id)}
-                    className="rounded-xl border border-graphite-700 p-3 text-parchment-100/70 transition hover:border-error hover:text-red-300"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div>
+                    {productBrand && (
+                      <p className="text-sm text-parchment-100/60">
+                        {productBrand}
+                      </p>
+                    )}
 
-                  <div className="flex items-center rounded-xl border border-graphite-700">
+                    <h2 className="mt-1 font-display text-3xl italic">
+                      {item.name}
+                    </h2>
+
+                    <p className="mt-3 text-lg font-medium">
+                      Rs. {item.price?.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end justify-between gap-4">
                     <button
-                      onClick={() =>
-                        handleUpdateQuantity(
-                          item.product._id,
-                          item.quantity - 1
-                        )
-                      }
-                      disabled={item.quantity <= 1}
-                      className="px-4 py-3 disabled:opacity-40"
+                      onClick={() => handleRemoveItem(productId)}
+                      className="rounded-xl border border-graphite-700 p-3 text-parchment-100/70 transition hover:border-error hover:text-red-300"
                     >
-                      <Minus size={16} />
+                      <Trash2 size={18} />
                     </button>
 
-                    <span className="min-w-[50px] text-center">
-                      {item.quantity}
-                    </span>
+                    <div className="flex items-center rounded-xl border border-graphite-700">
+                      <button
+                        onClick={() =>
+                          handleUpdateQuantity(productId, item.quantity - 1)
+                        }
+                        disabled={item.quantity <= 1}
+                        className="px-4 py-3 disabled:opacity-40"
+                      >
+                        <Minus size={16} />
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        handleUpdateQuantity(
-                          item.product._id,
-                          item.quantity + 1
-                        )
-                      }
-                      className="px-4 py-3"
-                    >
-                      <Plus size={16} />
-                    </button>
+                      <span className="min-w-[50px] text-center">
+                        {item.quantity}
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          handleUpdateQuantity(productId, item.quantity + 1)
+                        }
+                        className="px-4 py-3"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <aside className="h-fit rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
@@ -156,16 +169,12 @@ const Cart = () => {
 
             <div className="mt-6 space-y-4 text-sm">
               <div className="flex justify-between border-b border-graphite-700 pb-4">
-                <span className="text-parchment-100/60">
-                  Subtotal
-                </span>
+                <span className="text-parchment-100/60">Subtotal</span>
                 <span>Rs. {subtotal.toLocaleString()}</span>
               </div>
 
               <div className="flex justify-between border-b border-graphite-700 pb-4">
-                <span className="text-parchment-100/60">
-                  Delivery
-                </span>
+                <span className="text-parchment-100/60">Delivery</span>
                 <span>Calculated at checkout</span>
               </div>
 

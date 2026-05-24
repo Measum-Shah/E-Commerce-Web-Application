@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { Pencil, Trash2, Plus, X, UploadCloud, ImageIcon, Star } from "lucide-react";
+import { Pencil, Trash2, Plus, X, UploadCloud, ImageIcon, Star, Search } from "lucide-react";
 
 import {
   createProduct,
@@ -45,12 +45,14 @@ const AdminProducts = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState(initialForm);
 
-  // Each entry: { file: File|null, preview: string, url: string|null }
-  // file = File object if newly picked, null if it's an existing URL
-  // preview = object URL (new) or cloudinary URL (existing)
-  // url = final cloudinary URL (null until uploaded)
   const [images, setImages] = useState([]);
   const [coverIndex, setCoverIndex] = useState(0);
+
+  const [togglingFeatured, setTogglingFeatured] = useState(new Set());
+
+  // ── filters
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
 
   /* ── fetch ──────────────────────────────────────────── */
   const fetchData = async () => {
@@ -71,6 +73,23 @@ const AdminProducts = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  /* ── filtered products ──────────────────────────────── */
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return products.filter((p) => {
+      if (q && !p.name?.toLowerCase().includes(q)) return false;
+      if (filterCategory && p.category?._id !== filterCategory) return false;
+      return true;
+    });
+  }, [products, search, filterCategory]);
+
+  const hasActiveFilters = search || filterCategory;
+
+  const clearFilters = () => {
+    setSearch("");
+    setFilterCategory("");
+  };
 
   /* ── form helpers ───────────────────────────────────── */
   const handleChange = (e) => {
@@ -93,50 +112,35 @@ const AdminProducts = () => {
   const handleImagePick = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-
     const newImages = files.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
       url: null,
     }));
-
     setImages((prev) => [...prev, ...newImages]);
-    // Reset file input so same file can be picked again if needed
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (index) => {
     setImages((prev) => {
       const updated = prev.filter((_, i) => i !== index);
-      // If we removed the cover, reset to first image
-      if (coverIndex >= updated.length) {
-        setCoverIndex(0);
-      } else if (coverIndex === index) {
-        setCoverIndex(0);
-      }
+      if (coverIndex >= updated.length) setCoverIndex(0);
+      else if (coverIndex === index) setCoverIndex(0);
       return updated;
     });
   };
 
-  const setCover = (index) => {
-    setCoverIndex(index);
-  };
+  const setCover = (index) => setCoverIndex(index);
 
   /* ── upload all new images to cloudinary ────────────── */
   const uploadAllImages = async () => {
-    const uploaded = await Promise.all(
+    return await Promise.all(
       images.map(async (img) => {
-        // Already uploaded (existing cloudinary URL, no file)
         if (!img.file) return { ...img };
-
         const data = await uploadImage(img.file, token);
-        return {
-          ...img,
-          url: data.data.url,
-        };
+        return { ...img, url: data.data.url };
       })
     );
-    return uploaded;
   };
 
   /* ── submit ─────────────────────────────────────────── */
@@ -158,7 +162,6 @@ const AdminProducts = () => {
       setUploading(false);
       toast.dismiss("img-upload");
 
-      // Build final images array with cover image first
       const finalImages = [
         uploadedImages[coverIndex]?.url || uploadedImages[coverIndex]?.preview,
         ...uploadedImages
@@ -227,15 +230,13 @@ const AdminProducts = () => {
       isFeatured: product.isFeatured || false,
     });
 
-    // Load existing images — first one is always the cover
-    const existingImages = (product.images || []).map((url, i) => ({
+    const existingImages = (product.images || []).map((url) => ({
       file: null,
       preview: url,
       url,
     }));
     setImages(existingImages);
     setCoverIndex(0);
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -251,20 +252,46 @@ const AdminProducts = () => {
     }
   };
 
+  /* ── quick-toggle featured ──────────────────────────── */
+  const handleToggleFeatured = async (product) => {
+    setTogglingFeatured((prev) => new Set(prev).add(product._id));
+    try {
+      await updateProduct(product._id, { isFeatured: !product.isFeatured }, token);
+      setProducts((prev) =>
+        prev.map((p) =>
+          p._id === product._id ? { ...p, isFeatured: !p.isFeatured } : p
+        )
+      );
+      toast.success(
+        !product.isFeatured
+          ? `"${product.name}" added to featured`
+          : `"${product.name}" removed from featured`
+      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update featured status");
+    } finally {
+      setTogglingFeatured((prev) => {
+        const next = new Set(prev);
+        next.delete(product._id);
+        return next;
+      });
+    }
+  };
+
   /* ── render ─────────────────────────────────────────── */
   return (
-    <main className="mx-auto max-w-7xl px-6 py-16">
-      <div className="mb-12">
+    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
+      <div className="mb-10">
         <p className="mb-3 text-sm uppercase tracking-[0.35em] text-velvet-light">
           Admin
         </p>
-        <h1 className="font-display text-6xl italic tracking-tight">
+        <h1 className="font-display text-5xl sm:text-6xl italic tracking-tight">
           Products
         </h1>
       </div>
 
       {/* ── FORM ── */}
-      <div className="mb-12 rounded-3xl border border-graphite-700 bg-graphite-800 p-6">
+      <div className="mb-12 rounded-2xl sm:rounded-3xl border border-graphite-700 bg-graphite-800 p-5 sm:p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-3xl italic">
             {editingProduct ? "Edit Product" : "Create Product"}
@@ -309,7 +336,6 @@ const AdminProducts = () => {
             </div>
 
             {images.length === 0 ? (
-              /* Empty drop zone */
               <label
                 htmlFor="product-images-input"
                 className="flex h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-graphite-600 bg-graphite-900 transition hover:border-velvet"
@@ -323,15 +349,12 @@ const AdminProducts = () => {
                 </p>
               </label>
             ) : (
-              /* Image grid */
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {images.map((img, index) => (
                   <div
                     key={index}
                     className={`group relative overflow-hidden rounded-2xl border-2 transition ${
-                      coverIndex === index
-                        ? "border-velvet"
-                        : "border-graphite-700"
+                      coverIndex === index ? "border-velvet" : "border-graphite-700"
                     }`}
                   >
                     <img
@@ -339,16 +362,12 @@ const AdminProducts = () => {
                       alt={`Product image ${index + 1}`}
                       className="h-36 w-full object-cover"
                     />
-
-                    {/* Cover badge */}
                     {coverIndex === index && (
                       <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-velvet px-2 py-1 text-xs font-medium text-parchment-50">
                         <Star size={10} fill="currentColor" />
                         Cover
                       </div>
                     )}
-
-                    {/* Hover overlay */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-graphite-900/75 opacity-0 transition group-hover:opacity-100">
                       {coverIndex !== index && (
                         <button
@@ -372,7 +391,6 @@ const AdminProducts = () => {
                   </div>
                 ))}
 
-                {/* Add more tile */}
                 <label
                   htmlFor="product-images-input"
                   className="flex h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-graphite-600 bg-graphite-900 transition hover:border-velvet"
@@ -480,7 +498,6 @@ const AdminProducts = () => {
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet md:col-span-2"
           />
 
-          {/* Specifications */}
           <p className="text-xs uppercase tracking-widest text-parchment-100/30 md:col-span-2">
             Specifications
           </p>
@@ -521,7 +538,6 @@ const AdminProducts = () => {
             className="rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 outline-none focus:border-velvet"
           />
 
-          {/* Featured */}
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-graphite-700 bg-graphite-900 px-4 py-3 transition hover:border-velvet">
             <input
               type="checkbox"
@@ -533,7 +549,6 @@ const AdminProducts = () => {
             Mark as Featured
           </label>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={submitting || uploading}
@@ -551,23 +566,94 @@ const AdminProducts = () => {
         </form>
       </div>
 
+      {/* ── SEARCH + FILTER BAR ── */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        {/* search */}
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-parchment-100/40 pointer-events-none"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by product name…"
+            className="w-full rounded-xl border border-graphite-700 bg-graphite-800 py-3 pl-10 pr-10 text-sm text-parchment-50 placeholder:text-parchment-100/30 outline-none transition focus:border-velvet"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-parchment-100/40 hover:text-parchment-50 transition"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* category filter */}
+        <div className="relative sm:w-56">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-velvet ${
+              filterCategory
+                ? "border-velvet bg-velvet/10 text-parchment-50"
+                : "border-graphite-700 bg-graphite-800 text-parchment-100/60"
+            }`}
+          >
+            <option value="">All categories</option>
+            {categories.map((cat) => (
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          {/* custom caret */}
+          <svg
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-parchment-100/40"
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+
+        {/* clear all */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 rounded-xl border border-graphite-700 px-4 py-3 text-sm text-parchment-100/60 transition hover:border-velvet hover:text-parchment-50 active:scale-95"
+          >
+            <X size={14} />
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* results count */}
+      <p className="mb-6 text-sm text-parchment-100/40">
+        {filteredProducts.length === products.length
+          ? `${products.length} product${products.length !== 1 ? "s" : ""}`
+          : `${filteredProducts.length} of ${products.length} products`}
+      </p>
+
       {/* ── PRODUCT LIST ── */}
       {loading ? (
         <div className="flex justify-center py-20 text-parchment-100/50">
           Loading products...
         </div>
-      ) : products.length === 0 ? (
+      ) : filteredProducts.length === 0 ? (
         <div className="rounded-3xl border border-graphite-700 bg-graphite-800 p-10 text-center text-parchment-100/60">
-          No products found.
+          {hasActiveFilters ? "No products match your filters." : "No products found."}
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
+        <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProducts.map((product) => (
             <div
               key={product._id}
-              className="overflow-hidden rounded-3xl border border-graphite-700 bg-graphite-800"
+              className="overflow-hidden rounded-2xl sm:rounded-3xl border border-graphite-700 bg-graphite-800"
             >
-              {/* Cover image + image count badge */}
               <div className="relative">
                 {product.images?.[0] ? (
                   <img
@@ -580,18 +666,30 @@ const AdminProducts = () => {
                     <ImageIcon size={40} />
                   </div>
                 )}
+
                 {product.images?.length > 1 && (
                   <span className="absolute bottom-3 right-3 rounded-full bg-graphite-900/80 px-2.5 py-1 text-xs text-parchment-100/70 backdrop-blur">
                     +{product.images.length - 1} more
                   </span>
                 )}
+
+                {product.isFeatured && (
+                  <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-velvet px-2.5 py-1 text-xs font-medium text-parchment-50">
+                    <Star size={10} fill="currentColor" />
+                    Featured
+                  </div>
+                )}
               </div>
 
-              <div className="p-6">
+              <div className="p-5 sm:p-6">
                 <p className="text-sm text-parchment-100/50">{product.brand}</p>
-                <h2 className="mt-1 font-display text-3xl italic tracking-tight">
+                <h2 className="mt-1 font-display text-2xl sm:text-3xl italic tracking-tight">
                   {product.name}
                 </h2>
+                <p className="mt-0.5 text-xs text-parchment-100/40">
+                  {product.category?.name}
+                </p>
+
                 <div className="mt-3 flex items-center gap-3">
                   <span className="text-xl font-medium">
                     Rs. {product.price?.toLocaleString()}
@@ -607,20 +705,39 @@ const AdminProducts = () => {
                   </span>
                 </div>
 
-                <div className="mt-5 flex items-center gap-3">
+                <div className="mt-5 flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => handleEdit(product)}
-                    className="flex items-center gap-2 rounded-xl border border-graphite-700 px-4 py-2.5 text-sm transition hover:border-velvet"
+                    className="flex items-center gap-2 rounded-xl border border-graphite-700 px-4 py-2.5 text-sm transition hover:border-velvet active:scale-95"
                   >
                     <Pencil size={15} />
                     Edit
                   </button>
+
                   <button
                     onClick={() => handleDelete(product._id)}
-                    className="flex items-center gap-2 rounded-xl border border-error px-4 py-2.5 text-sm text-red-300 transition hover:bg-error/20"
+                    className="flex items-center gap-2 rounded-xl border border-error px-4 py-2.5 text-sm text-red-300 transition hover:bg-error/20 active:scale-95"
                   >
                     <Trash2 size={15} />
                     Delete
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleFeatured(product)}
+                    disabled={togglingFeatured.has(product._id)}
+                    className={`ml-auto flex items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm transition disabled:opacity-50 active:scale-95 ${
+                      product.isFeatured
+                        ? "border-velvet bg-velvet/10 text-velvet-light hover:bg-error/10 hover:border-error hover:text-red-300"
+                        : "border-graphite-700 text-parchment-100/50 hover:border-velvet hover:text-velvet-light"
+                    }`}
+                    title={product.isFeatured ? "Remove from featured" : "Add to featured"}
+                  >
+                    <Star size={14} fill={product.isFeatured ? "currentColor" : "none"} />
+                    {togglingFeatured.has(product._id)
+                      ? "..."
+                      : product.isFeatured
+                      ? "Featured"
+                      : "Feature"}
                   </button>
                 </div>
               </div>

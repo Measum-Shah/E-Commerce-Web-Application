@@ -109,6 +109,8 @@ promoSchema.virtual("isValid").get(function () {
   );
 });
 
+// promoSchema.index({ code: 1 });
+// promoSchema.index({ endDate: 1 });
 
 const Promo = mongoose.model("Promo", promoSchema);
 

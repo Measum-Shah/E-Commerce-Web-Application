@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -11,6 +11,7 @@ import { useCart } from "../context/CartContext";
 
 const ProductDetails = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
 
   const { token, isAuthenticated } = useAuth();
   const { fetchCart } = useCart();
@@ -63,7 +64,8 @@ const ProductDetails = () => {
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      toast.error("Please login first");
+      toast.error("Please login to add items to your cart");
+      navigate("/login");
       return;
     }
     try {
