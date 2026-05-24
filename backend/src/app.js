@@ -12,13 +12,14 @@ import orderRoutes from "./routes/order.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import promoRoutes from "./routes/promo.routes.js";
+import visitRoutes from "./routes/visit.routes.js";
 
 
 
 const corsOptions = {
   // Allow only your frontend origin
-  origin: 'http://localhost:5173',
-  // origin:'https://premiercomputers.store',
+  // origin: 'http://localhost:5173',
+  origin:'https://premiercomputers.store',
    
   // Good practice for professional APIs
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -68,6 +69,7 @@ app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/promos", promoRoutes);
+app.use("/api/visits", visitRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

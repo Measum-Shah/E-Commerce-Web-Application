@@ -6,44 +6,47 @@ import {
   ShoppingCart,
   MessageSquare,
   Tag,
+  BarChart2,
 } from "lucide-react";
 
 const AdminDashboard = () => {
   const cards = [
     {
       title: "Manage Products",
-      description:
-        "Create, update, and manage inventory items.",
+      description: "Create, update, and manage inventory items.",
       icon: Boxes,
       link: "/admin/products",
     },
     {
       title: "Manage Categories",
-      description:
-        "Organize product collections and categories.",
+      description: "Organize product collections and categories.",
       icon: LayoutGrid,
       link: "/admin/categories",
     },
     {
       title: "Manage Orders",
-      description:
-        "Track, confirm, and process customer orders.",
+      description: "Track, confirm, and process customer orders.",
       icon: ShoppingCart,
       link: "/admin/orders",
     },
-     {
+    {
       title: "Manage Contact Messages",
-      description:
-        "Read and reply messages",
+      description: "Read and reply messages",
       icon: MessageSquare,
       link: "/admin/contact",
     },
-      {
+    {
       title: "Manage Promo Codes",
-      description:
-        "Add and Remove Promo codes and offers",
+      description: "Add and Remove Promo codes and offers",
       icon: Tag,
       link: "/admin/promo",
+    },
+    {
+      title: "Visit Analytics",
+      description:
+        "Monitor site traffic, unique visitors, top cities, and daily visit trends.",
+      icon: BarChart2,
+      link: "/admin/visits",
     },
   ];
 
@@ -59,8 +62,8 @@ const AdminDashboard = () => {
         </h1>
 
         <p className="mt-4 max-w-2xl text-parchment-100/70">
-          Manage products, categories, and customer
-          orders from one professional dashboard.
+          Manage products, categories, and customer orders from one professional
+          dashboard.
         </p>
       </div>
 

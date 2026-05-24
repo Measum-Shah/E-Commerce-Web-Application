@@ -19,15 +19,19 @@ import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminContact from "./pages/admin/AdminContact";
-
+import AdminVisits from "./pages/admin/AdminVisits";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AdminPromo from "./pages/admin/AdminPromo";
 import Loader from "./components/Loader";
+import useTrackVisit from "./hooks/useTrackVisit";
 
 function App() {
   const location = useLocation();
+
+  // Track every unique browser session — silent, never breaks the app
+  useTrackVisit();
 
   const hideLayout =
     location.pathname === "/login" ||
@@ -38,7 +42,7 @@ function App() {
       {!hideLayout && <Navbar />}
 
       <Toaster position="top-right" />
-      <Loader/>
+      <Loader />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -118,6 +122,7 @@ function App() {
               </AdminRoute>
             }
           />
+
           <Route
             path="/admin/contact"
             element={
@@ -125,18 +130,25 @@ function App() {
                 <AdminContact />
               </AdminRoute>
             }
-            
-          /> 
-           <Route
+          />
+
+          <Route
             path="/admin/promo"
             element={
               <AdminRoute>
                 <AdminPromo />
               </AdminRoute>
             }
-            
-          />           
-        
+          />
+
+          <Route
+            path="/admin/visits"
+            element={
+              <AdminRoute>
+                <AdminVisits />
+              </AdminRoute>
+            }
+          />
         </Routes>
       </main>
 
