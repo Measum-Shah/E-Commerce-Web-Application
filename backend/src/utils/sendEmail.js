@@ -1,28 +1,24 @@
 import nodemailer from "nodemailer";
 
-// Create transporter once — reused for all emails
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_PASSWORD  // Gmail App Password (not your real password)
-  }
-});
-
 /**
- * Send an email using Nodemailer + Gmail SMTP.
+ * Send an email using Brevo SMTP.
  * NEVER throws — email failure must never crash the order system.
- *
- * @param {Object} options
- * @param {string}   options.to      - Recipient email address
- * @param {string}   options.subject - Email subject line
- * @param {string}   options.html    - HTML body
- * @returns {Promise<boolean>}       - true if sent, false if failed
  */
 const sendEmail = async ({ to, subject, html }) => {
   try {
+    // Transporter created inside function so env vars are always loaded
+    const transporter = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.BREVO_SMTP_USER,
+        pass: process.env.BREVO_SMTP_PASS
+      }
+    });
+
     await transporter.sendMail({
-      from: `"Premier Computers" <${process.env.SMTP_EMAIL}>`,
+      from: `"Premier Computers" <${process.env.BREVO_SMTP_USER}>`,
       to,
       subject,
       html
@@ -31,7 +27,6 @@ const sendEmail = async ({ to, subject, html }) => {
     console.log(`[sendEmail] Email sent successfully to: ${to}`);
     return true;
   } catch (err) {
-    // ✅ CRITICAL: catch all errors — email failure must never crash the server
     console.error("[sendEmail] Failed to send email:", err.message);
     return false;
   }

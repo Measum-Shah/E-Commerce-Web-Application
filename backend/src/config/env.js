@@ -7,7 +7,8 @@ const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   MONGO_URI: process.env.MONGO_URI,
   JWT_SECRET: process.env.JWT_SECRET,
-  RESEND_API_KEY: process.env.RESEND_API_KEY
+  BREVO_SMTP_USER: process.env.BREVO_SMTP_USER,
+  BREVO_SMTP_PASS: process.env.BREVO_SMTP_PASS
 };
 
 export default env;
