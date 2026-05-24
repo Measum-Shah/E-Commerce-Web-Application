@@ -171,7 +171,7 @@ const CategorySection = ({ config, products, index, loading }) => {
         </div>
 
         {/* products grid */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-4">
           {visible.map((product) => (
             <ProductCard key={product._id} product={product} />
           ))}
