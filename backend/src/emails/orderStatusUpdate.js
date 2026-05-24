@@ -181,7 +181,7 @@ const orderStatusUpdateEmail = (order, user) => {
               <div style="background:#fff7ed;border-radius:6px;padding:16px;margin-bottom:16px;">
                 <p style="margin:0;color:#c2410c;font-size:13px;">
                   If you did not request this cancellation or have any concerns, please contact us immediately at
-                  <a href="mailto:premiercomputers0007@gmail.com" style="color:#2563eb;">premiercomputers0007@gmail.com</a>
+                  <a href="mailto:premiercomputers007@gmail.com" style="color:#2563eb;">premiercomputers007@gmail.com</a>
                 </p>
               </div>` : ""}
 
@@ -193,7 +193,7 @@ const orderStatusUpdateEmail = (order, user) => {
             <td style="padding:0 32px 28px;">
               <p style="margin:0;color:#6b7280;font-size:13px;text-align:center;">
                 Questions? Reach us at
-                <a href="mailto:premiercomputers0007@gmail.com" style="color:#2563eb;text-decoration:none;">premiercomputers0007@gmail.com</a>
+                <a href="mailto:premiercomputers007@gmail.com" style="color:#2563eb;text-decoration:none;">premiercomputers007@gmail.com</a>
               </p>
             </td>
           </tr>

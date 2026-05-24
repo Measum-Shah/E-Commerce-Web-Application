@@ -153,7 +153,7 @@ const orderPlacedCustomerEmail = (order, user) => {
             <td style="padding:0 32px 28px;">
               <p style="margin:0;color:#6b7280;font-size:13px;text-align:center;">
                 Questions? Contact us at
-                <a href="mailto:premiercomputers0007@gmail.com" style="color:#2563eb;text-decoration:none;">premiercomputers0007@gmail.com</a>
+                <a href="mailto:premiercomputers007@gmail.com" style="color:#2563eb;text-decoration:none;">premiercomputers007@gmail.com</a>
               </p>
             </td>
           </tr>

@@ -16,7 +16,7 @@ import orderPlacedAdminEmail from "../emails/orderPlacedAdmin.js";
 import orderPlacedCustomerEmail from "../emails/orderPlacedCustomer.js";
 import orderStatusUpdateEmail from "../emails/orderStatusUpdate.js";
 
-const ADMIN_EMAIL = "premiercomputers0007@gmail.com";
+const ADMIN_EMAIL = "premiercomputers007@gmail.com";
 
 // ─── Create Order ─────────────────────────────────────────────────────────────
 

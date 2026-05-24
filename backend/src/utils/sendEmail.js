@@ -1,9 +1,16 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create transporter once — reused for all emails
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD  // Gmail App Password (not your real password)
+  }
+});
 
 /**
- * Send an email using Resend.
+ * Send an email using Nodemailer + Gmail SMTP.
  * NEVER throws — email failure must never crash the order system.
  *
  * @param {Object} options
@@ -14,23 +21,18 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  */
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    const { error } = await resend.emails.send({
-      from: "Premier Computers <orders@premiercomputers.store>",
+    await transporter.sendMail({
+      from: `"Premier Computers" <${process.env.SMTP_EMAIL}>`,
       to,
       subject,
       html
     });
 
-    if (error) {
-      console.error("[sendEmail] Resend API error:", error);
-      return false;
-    }
-
     console.log(`[sendEmail] Email sent successfully to: ${to}`);
     return true;
   } catch (err) {
     // ✅ CRITICAL: catch all errors — email failure must never crash the server
-    console.error("[sendEmail] Unexpected error:", err.message);
+    console.error("[sendEmail] Failed to send email:", err.message);
     return false;
   }
 };
