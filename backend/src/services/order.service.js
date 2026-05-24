@@ -1,12 +1,8 @@
-import mongoose from "mongoose";
-
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
-import Product from "../models/Product.js";
 import User from "../models/User.js";
 
 import orderStatus from "../constants/orderStatus.js";
-import paymentMethods from "../constants/paymentMethods.js";
 
 import { applyPromoCode, incrementPromoUsage } from "./promo.service.js";
 
@@ -18,6 +14,77 @@ import orderStatusUpdateEmail from "../emails/orderStatusUpdate.js";
 
 const ADMIN_EMAIL = "premiercomputers007@gmail.com";
 
+// ─── Background Task Helper ───────────────────────────────────────────────────
+
+const runInBackground = (task, label = "Background task") => {
+  setImmediate(async () => {
+    try {
+      await task();
+    } catch (error) {
+      console.error(`[${label}] Failed:`, error.message);
+    }
+  });
+};
+
+// ─── Email Background Jobs ────────────────────────────────────────────────────
+
+const sendOrderPlacedEmailsInBackground = async (order, userId) => {
+  const user = await User.findById(userId).select("fullName email phone");
+
+  if (!user) {
+    console.warn("[sendOrderPlacedEmails] User not found, skipping emails");
+    return;
+  }
+
+  const emailTasks = [];
+
+  // 1. Email to admin
+  const adminMail = orderPlacedAdminEmail(order, user);
+  emailTasks.push(
+    sendEmail({
+      to: ADMIN_EMAIL,
+      ...adminMail,
+    })
+  );
+
+  // 2. Confirmation email to customer
+  if (user.email) {
+    const customerMail = orderPlacedCustomerEmail(order, user);
+    emailTasks.push(
+      sendEmail({
+        to: user.email,
+        ...customerMail,
+      })
+    );
+  }
+
+  const results = await Promise.allSettled(emailTasks);
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        `[sendOrderPlacedEmails] Email ${index + 1} failed:`,
+        result.reason?.message
+      );
+    }
+  });
+};
+
+const sendOrderStatusEmailInBackground = async (order, user) => {
+  if (!user?.email) {
+    console.warn("[sendOrderStatusEmail] User email not found, skipping email");
+    return;
+  }
+
+  const { subject, html } = orderStatusUpdateEmail(order, user);
+
+  await sendEmail({
+    to: user.email,
+    subject,
+    html,
+  });
+};
+
 // ─── Create Order ─────────────────────────────────────────────────────────────
 
 const createOrder = async (userId, body) => {
@@ -27,10 +94,10 @@ const createOrder = async (userId, body) => {
     promoCode,
     notes,
     deliveryFee: clientDeliveryFee,
-    discount: clientDiscount
   } = body;
 
   const cart = await Cart.findOne({ user: userId }).populate("items.product");
+
   if (!cart || cart.items.length === 0) {
     const err = new Error("Cart is empty");
     err.statusCode = 400;
@@ -45,65 +112,56 @@ const createOrder = async (userId, body) => {
     const cartPayload = {
       totalAmount: cart.totalAmount,
       items: cart.items.map((item) => ({
-        product:  item.product._id || item.product,
+        product: item.product._id || item.product,
         category: item.product?.category,
-        price:    item.price ?? item.product?.price ?? 0,
+        price: item.price ?? item.product?.price ?? 0,
         quantity: item.quantity,
-        subtotal: item.subtotal ?? ((item.price ?? item.product?.price ?? 0) * item.quantity)
-      }))
+        subtotal:
+          item.subtotal ??
+          (item.price ?? item.product?.price ?? 0) * item.quantity,
+      })),
     };
 
     const promoResult = await applyPromoCode(promoCode, userId, cartPayload);
-    discount     = promoResult.discountAmount;
+
+    discount = promoResult.discountAmount;
     freeShipping = promoResult.promo.freeShipping;
     appliedPromo = promoResult.promo;
   }
 
-  const deliveryFee  = freeShipping ? 0 : (clientDeliveryFee ?? 300);
-  const totalAmount  = Math.max(0, cart.totalAmount - discount + deliveryFee);
+  const deliveryFee = freeShipping ? 0 : clientDeliveryFee ?? 300;
+  const totalAmount = Math.max(0, cart.totalAmount - discount + deliveryFee);
 
   const order = await Order.create({
-    user:        userId,
-    items:       cart.items,
+    user: userId,
+    items: cart.items,
     shippingAddress,
     paymentMethod,
-    totalItems:  cart.totalItems,
-    subtotal:    cart.totalAmount,
+    totalItems: cart.totalItems,
+    subtotal: cart.totalAmount,
     deliveryFee,
     discount,
     totalAmount,
     notes,
-    promoCode:   appliedPromo?.code || null
+    promoCode: appliedPromo?.code || null,
   });
 
-  if (appliedPromo) await incrementPromoUsage(appliedPromo._id);
+  if (appliedPromo) {
+    await incrementPromoUsage(appliedPromo._id);
+  }
 
-  // Clear cart
+  // Clear cart before returning order
   await Cart.findOneAndUpdate(
     { user: userId },
     { items: [], totalItems: 0, totalAmount: 0 }
   );
 
-  // ─── Send emails (non-blocking — failures never crash the order) ──────────
-  try {
-    // Fetch the user for email/name details
-    const user = await User.findById(userId).select("fullName email phone");
-
-    if (user) {
-      // 1. Email to admin
-      const adminMail = orderPlacedAdminEmail(order, user);
-      await sendEmail({ to: ADMIN_EMAIL, ...adminMail });
-
-      // 2. Confirmation email to customer
-      if (user.email) {
-        const customerMail = orderPlacedCustomerEmail(order, user);
-        await sendEmail({ to: user.email, ...customerMail });
-      }
-    }
-  } catch (emailErr) {
-    // ✅ Email errors are logged but never thrown — order is already saved
-    console.error("[createOrder] Email sending failed:", emailErr.message);
-  }
+  // Email sending starts in background.
+  // Order placement response will NOT wait for emails.
+  runInBackground(
+    () => sendOrderPlacedEmailsInBackground(order, userId),
+    "createOrder email notification"
+  );
 
   return order;
 };
@@ -160,16 +218,13 @@ const cancelOrder = async (orderId, userId) => {
 
   await order.save();
 
-  // ─── Notify customer their order was cancelled ────────────────────────────
-  try {
+  // Status email starts in background.
+  // Cancel response will NOT wait for email.
+  runInBackground(async () => {
     const user = await User.findById(userId).select("fullName email");
-    if (user?.email) {
-      const { subject, html } = orderStatusUpdateEmail(order, user);
-      await sendEmail({ to: user.email, subject, html });
-    }
-  } catch (emailErr) {
-    console.error("[cancelOrder] Email sending failed:", emailErr.message);
-  }
+
+    await sendOrderStatusEmailInBackground(order, user);
+  }, "cancelOrder email notification");
 
   return order;
 };
@@ -187,7 +242,10 @@ const getAllOrders = async () => {
 // ─── Update Order Status (Admin) ─────────────────────────────────────────────
 
 const updateOrderStatus = async (orderId, status) => {
-  const order = await Order.findById(orderId).populate("user", "fullName email phone");
+  const order = await Order.findById(orderId).populate(
+    "user",
+    "fullName email phone"
+  );
 
   if (!order) {
     throw new Error("Order not found");
@@ -202,16 +260,12 @@ const updateOrderStatus = async (orderId, status) => {
 
   await order.save();
 
-  // ─── Notify customer of status change ────────────────────────────────────
-  try {
-    const user = order.user; // already populated above
-    if (user?.email) {
-      const { subject, html } = orderStatusUpdateEmail(order, user);
-      await sendEmail({ to: user.email, subject, html });
-    }
-  } catch (emailErr) {
-    console.error("[updateOrderStatus] Email sending failed:", emailErr.message);
-  }
+  // Status update email starts in background.
+  // Admin status update response will NOT wait for email.
+  runInBackground(
+    () => sendOrderStatusEmailInBackground(order, order.user),
+    "updateOrderStatus email notification"
+  );
 
   return order;
 };
@@ -222,5 +276,5 @@ export {
   getOrderById,
   cancelOrder,
   getAllOrders,
-  updateOrderStatus
+  updateOrderStatus,
 };
